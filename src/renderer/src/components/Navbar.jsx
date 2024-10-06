@@ -1,15 +1,18 @@
-import { Link, useLocation } from 'react-router-dom'
+// Navbar.jsx
+
+import { Link, useLocation } from 'react-router-dom';
 import {
   HomeIcon,
   UsersIcon,
   FolderIcon,
   CreditCardIcon,
   DocumentTextIcon,
-  ClipboardListIcon // Import the icon for 'الامتحانات' (Exams)
-} from '@heroicons/react/outline'
+  ClipboardListIcon,
+  ArchiveIcon, // Import the Archive icon
+} from '@heroicons/react/outline';
 
 const Navbar = () => {
-  const location = useLocation()
+  const location = useLocation();
 
   const navItems = [
     {
@@ -17,45 +20,52 @@ const Navbar = () => {
       icon: HomeIcon,
       title: 'الرئيسية',
       color: 'text-blue-600',
-      activeColor: 'bg-blue-100'
+      activeColor: 'bg-blue-100',
     },
     {
       path: '/clients',
       icon: UsersIcon,
       title: 'قائمة العملاء',
       color: 'text-green-600',
-      activeColor: 'bg-green-100'
+      activeColor: 'bg-green-100',
     },
     {
       path: '/files',
       icon: FolderIcon,
       title: 'إدارة الملفات',
       color: 'text-purple-600',
-      activeColor: 'bg-purple-100'
+      activeColor: 'bg-purple-100',
     },
     {
       path: '/payments',
       icon: CreditCardIcon,
       title: 'إدارة المدفوعات',
       color: 'text-yellow-600',
-      activeColor: 'bg-yellow-100'
+      activeColor: 'bg-yellow-100',
     },
     {
       path: '/submission-nomination',
       icon: DocumentTextIcon,
       title: 'إيداع وترشيح المتقدمين',
       color: 'text-indigo-600',
-      activeColor: 'bg-indigo-100'
+      activeColor: 'bg-indigo-100',
     },
-    // New nav item for 'الامتحانات'
     {
       path: '/exams',
       icon: ClipboardListIcon,
       title: 'الامتحانات',
       color: 'text-teal-600',
-      activeColor: 'bg-teal-100'
-    }
-  ]
+      activeColor: 'bg-teal-100',
+    },
+    // New nav item for Archive
+    {
+      path: '/archive',
+      icon: ArchiveIcon,
+      title: 'الأرشيف',
+      color: 'text-gray-600',
+      activeColor: 'bg-gray-100',
+    },
+  ];
 
   return (
     <nav className="bg-gradient-to-r from-gray-100 to-gray-200 shadow-lg sticky top-0 z-50">
@@ -81,7 +91,7 @@ const Navbar = () => {
         </div>
       </div>
     </nav>
-  )
-}
+  );
+};
 
-export default Navbar
+export default Navbar;

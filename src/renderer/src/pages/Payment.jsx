@@ -1,33 +1,40 @@
-import { useEffect, useState } from 'react';
-import Navbar from '../components/Navbar';
+// Payment.jsx
+
+import { useEffect, useState } from 'react'
+import Navbar from '../components/Navbar'
 
 const Payment = () => {
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [clients, setClients] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     const fetchClients = async () => {
       try {
-        const clientsData = await window.api.readClients();
-        setClients(clientsData);
-        setLoading(false);
+        const clientsData = await window.api.readClients()
+
+        // Filter out archived clients
+        const activeClients = clientsData.filter((client) => !client.archived)
+
+        setClients(activeClients)
+        setLoading(false)
       } catch (error) {
-        console.error('Failed to fetch clients:', error);
-        setError('فشل في تحميل بيانات العملاء. حاول مرة أخرى.');
-        setLoading(false);
+        console.error('Failed to fetch clients:', error)
+        setError('فشل في تحميل بيانات العملاء. حاول مرة أخرى.')
+        setLoading(false)
       }
-    };
+    }
 
-    fetchClients();
-  }, []);
+    fetchClients()
+  }, [])
 
-  const totalPaid = clients.reduce((sum, client) => sum + client.paid, 0);
+  // Calculate totals based on active clients
+  const totalPaid = clients.reduce((sum, client) => sum + (client.paid || 0), 0)
   const totalUnpaid = clients.reduce(
-    (sum, client) => sum + (client.subPrice - client.paid),
+    (sum, client) => sum + ((client.subPrice || 0) - (client.paid || 0)),
     0
-  );
-  const totalClients = clients.length; // Total number of clients
+  )
+  const totalClients = clients.length // Total number of active clients
 
   return (
     <div dir="rtl" className="w-screen h-screen flex flex-col">
@@ -36,9 +43,7 @@ const Payment = () => {
       {/* Page Title */}
       <header className="bg-gradient-to-r from-indigo-600 to-indigo-800 text-white py-8">
         <div className="px-4">
-          <h1 className="text-4xl font-extrabold text-center">
-            لوحة التحكم المالية
-          </h1>
+          <h1 className="text-4xl font-extrabold text-center">لوحة التحكم المالية</h1>
         </div>
       </header>
 
@@ -47,19 +52,13 @@ const Payment = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* Total Clients */}
           <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">
-              إجمالي عدد العملاء
-            </h2>
-            <p className="text-4xl font-extrabold text-blue-600">
-              {totalClients}
-            </p>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">إجمالي عدد العملاء</h2>
+            <p className="text-4xl font-extrabold text-blue-600">{totalClients}</p>
           </div>
 
           {/* Total Paid */}
           <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">
-              إجمالي المبلغ المدفوع
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">إجمالي المبلغ المدفوع</h2>
             <p className="text-4xl font-extrabold text-green-600">
               {totalPaid.toLocaleString()} د.ج
             </p>
@@ -67,9 +66,7 @@ const Payment = () => {
 
           {/* Total Unpaid */}
           <div className="bg-white rounded-3xl shadow-lg p-8 text-center">
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">
-              إجمالي المبلغ غير المدفوع
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">إجمالي المبلغ غير المدفوع</h2>
             <p className="text-4xl font-extrabold text-red-600">
               {totalUnpaid.toLocaleString()} د.ج
             </p>
@@ -78,18 +75,14 @@ const Payment = () => {
 
         {/* Client List */}
         <div className="bg-white rounded-3xl shadow-lg">
-          <h2 className="text-2xl font-extrabold text-gray-800 p-6 border-b">
-            قائمة العملاء
-          </h2>
+          <h2 className="text-2xl font-extrabold text-gray-800 p-6 border-b">قائمة العملاء</h2>
           <div className="overflow-x-auto">
             {loading ? (
               <div className="text-center text-xl font-semibold text-gray-600 p-8">
                 جاري تحميل البيانات...
               </div>
             ) : error ? (
-              <div className="text-center text-xl font-semibold text-red-600 p-8">
-                {error}
-              </div>
+              <div className="text-center text-xl font-semibold text-red-600 p-8">{error}</div>
             ) : clients.length === 0 ? (
               <div className="text-center text-xl font-semibold text-gray-600 p-8">
                 لا توجد بيانات للعرض
@@ -122,10 +115,10 @@ const Payment = () => {
                         {client.national_id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-lg text-green-600 font-semibold">
-                        {client.paid.toLocaleString()} د.ج
+                        {(client.paid || 0).toLocaleString()} د.ج
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-lg text-red-600 font-semibold">
-                        {(client.subPrice - client.paid).toLocaleString()} د.ج
+                        {((client.subPrice || 0) - (client.paid || 0)).toLocaleString()} د.ج
                       </td>
                     </tr>
                   ))}
@@ -136,7 +129,7 @@ const Payment = () => {
         </div>
       </main>
     </div>
-  );
-};
+  )
+}
 
-export default Payment;
+export default Payment

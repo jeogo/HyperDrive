@@ -7,7 +7,8 @@ import {
   Payment,
   About,
   SubmissionAndNomination,
-  Exams
+  Exams,
+  Archive
 } from './pages/index' // Import the new page
 
 function App() {
@@ -21,6 +22,8 @@ function App() {
         <Route path="/payments" element={<Payment />} />
         <Route path="/about" element={<About />} />
         <Route path="/submission-nomination" element={<SubmissionAndNomination />} />{' '}
+        <Route path="/archive" element={<Archive />} />
+
         {/* New route */}
         <Route path="/exams" element={<Exams />} /> {/* New route */}
       </Routes>

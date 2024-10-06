@@ -12,7 +12,6 @@ import {
   faHome,
   faSave,
   faMoneyBill,
-  faClipboardCheck
 } from '@fortawesome/free-solid-svg-icons'
 import Navbar from '../components/Navbar'
 import { ActionDialog } from '../components'

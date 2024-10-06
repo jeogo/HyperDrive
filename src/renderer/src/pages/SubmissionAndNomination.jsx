@@ -1,3 +1,5 @@
+// SubmissionAndNomination.jsx
+
 import { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar'
 import ClientCard from '../components/SubmissionAndNomination/ClientCard'
@@ -16,7 +18,11 @@ const SubmissionAndNomination = () => {
     const fetchClients = async () => {
       try {
         const data = await window.api.readClients()
-        setClients(data)
+
+        // Filter out archived clients
+        const activeClients = data.filter((client) => !client.archived)
+
+        setClients(activeClients)
       } catch (error) {
         console.error('Failed to fetch clients:', error)
         setDialog({
@@ -107,21 +113,21 @@ const SubmissionAndNomination = () => {
       setDialog({
         isOpen: true,
         message: 'يرجى تحديد متدرب واحد على الأقل.',
-        type: 'message',
-      });
-      return;
+        type: 'message'
+      })
+      return
     }
 
     const handleRetry = async () => {
       try {
         // Attempt to generate the PDF again after closing the dialog
-        const outputPath = await window.api.generatePDF('depositPortfolio', selectedClients);
-        await window.api.openPath(outputPath);
+        const outputPath = await window.api.generatePDF('depositPortfolio', selectedClients)
+        await window.api.openPath(outputPath)
         setDialog({
           isOpen: true,
           message: 'تم إنشاء الملف وفتح حافظة الإيداع.',
-          type: 'message',
-        });
+          type: 'message'
+        })
       } catch (error) {
         if (error.message.includes('EBUSY')) {
           setDialog({
@@ -130,21 +136,21 @@ const SubmissionAndNomination = () => {
             type: 'confirm',
             onConfirm: async () => {
               // Allow the user to retry generating the PDF
-              await handleRetry();
+              await handleRetry()
             },
             onCancel: () => {
-              setDialog({ ...dialog, isOpen: false });
-            },
-          });
+              setDialog({ ...dialog, isOpen: false })
+            }
+          })
         } else {
           setDialog({
             isOpen: true,
             message: 'فشل في إنشاء أو فتح ملف PDF. يرجى المحاولة لاحقًا.',
-            type: 'message',
-          });
+            type: 'message'
+          })
         }
       }
-    };
+    }
 
     setDialog({
       isOpen: true,
@@ -153,17 +159,17 @@ const SubmissionAndNomination = () => {
       onConfirm: async () => {
         try {
           // Generate the deposit portfolio PDF with selected clients
-          const outputPath = await window.api.generatePDF('depositPortfolio', selectedClients);
+          const outputPath = await window.api.generatePDF('depositPortfolio', selectedClients)
 
           // Automatically open the generated PDF file
-          await window.api.openPath(outputPath);
+          await window.api.openPath(outputPath)
 
           // Notify user that the PDF is opened
           setDialog({
             isOpen: true,
             message: 'تم إنشاء الملف وفتح حافظة الإيداع.',
-            type: 'message',
-          });
+            type: 'message'
+          })
         } catch (error) {
           if (error.message.includes('EBUSY')) {
             setDialog({
@@ -171,29 +177,28 @@ const SubmissionAndNomination = () => {
               message: 'الملف مفتوح أو مغلق، يرجى إغلاق الملف والمحاولة مرة أخرى.',
               type: 'confirm',
               onConfirm: async () => {
-                await handleRetry();
+                await handleRetry()
               },
               onCancel: () => {
-                setDialog({ ...dialog, isOpen: false });
-              },
-            });
+                setDialog({ ...dialog, isOpen: false })
+              }
+            })
           } else {
             setDialog({
               isOpen: true,
               message: 'فشل في إنشاء أو فتح ملف PDF. يرجى المحاولة لاحقًا.',
-              type: 'message',
-            });
+              type: 'message'
+            })
           }
         }
-        setViewMode('default');
-        setSelectedClients([]);
+        setViewMode('default')
+        setSelectedClients([])
       },
       onCancel: () => {
-        setDialog({ ...dialog, isOpen: false });
-      },
-    });
-  };
-
+        setDialog({ ...dialog, isOpen: false })
+      }
+    })
+  }
 
   // Filter clients based on the mode and deposit status
   const filteredClients = clients.filter((client) => {

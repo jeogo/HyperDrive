@@ -1,3 +1,5 @@
+// Clients.jsx
+
 import { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar'
 import {
@@ -39,9 +41,13 @@ const Clients = () => {
     const fetchClients = async () => {
       try {
         setLoading(true)
-        const clients = await window.api.readClients()
-        setClients(clients)
-        setFilteredClients(clients)
+        const clientsData = await window.api.readClients()
+
+        // Filter out archived clients
+        const activeClients = clientsData.filter((client) => !client.archived)
+
+        setClients(activeClients)
+        setFilteredClients(activeClients)
         setLoading(false)
       } catch (error) {
         setError('فشل في تحميل البيانات.')

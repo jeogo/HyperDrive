@@ -1,157 +1,165 @@
 // Exams.jsx
 
-import { useState, useEffect } from 'react'
-import Navbar from '../components/Navbar'
-import ClientCard from '../components/Exams/ClientCard'
-import EditClientModal from '../components/Exams/EditClientModal'
-import ActionDialog from '../components/Messages/ActionDialog' // For user notifications
+import { useState, useEffect } from 'react';
+import Navbar from '../components/Navbar';
+import ClientCard from '../components/Exams/ClientCard';
+import EditClientModal from '../components/Exams/EditClientModal';
+import ActionDialog from '../components/Messages/ActionDialog'; // For user notifications
 
 const Exams = () => {
-  const [clients, setClients] = useState([])
-  const [filteredClients, setFilteredClients] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [selectedClients, setSelectedClients] = useState([])
-  const [selectionMode, setSelectionMode] = useState(false)
+  const [clients, setClients] = useState([]);
+  const [filteredClients, setFilteredClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedClients, setSelectedClients] = useState([]);
+  const [selectionMode, setSelectionMode] = useState(false);
 
   // Filters and search state
-  const [searchTerm, setSearchTerm] = useState('')
-  const [testFilter, setTestFilter] = useState('all') // 'all', 'trafficLaw', 'manoeuvres', 'driving', 'completed'
-  const [ageFilter, setAgeFilter] = useState('all') // 'all', 'under19', 'above19'
+  const [searchTerm, setSearchTerm] = useState('');
+  const [testFilter, setTestFilter] = useState('all'); // 'all', 'trafficLaw', 'manoeuvres', 'driving', 'completed'
+  const [ageFilter, setAgeFilter] = useState('all'); // 'all', 'under19', 'above19'
 
   // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [currentClient, setCurrentClient] = useState(null)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentClient, setCurrentClient] = useState(null);
 
   // Dialog state for notifications
   const [dialog, setDialog] = useState({
     isOpen: false,
     message: '',
     type: 'message', // 'message' or 'confirm'
-    onConfirm: null
-  })
+    onConfirm: null,
+  });
 
   useEffect(() => {
     const fetchClients = async () => {
       try {
-        let data = await window.api.readClients()
-        // Ensure each client has all test properties
+        let data = await window.api.readClients();
+        // Ensure each client has all test properties and payment properties
         data = data.map((client) => ({
           ...client,
           depositSubmitted: client.depositSubmitted || false,
+          archived: client.archived || false,
+          paid: client.paid || 0,
+          subPrice: client.subPrice || 0,
           tests: {
             trafficLawTest: client.tests?.trafficLawTest || {
               passed: false,
               attempts: 0,
-              lastAttemptDate: null
+              lastAttemptDate: null,
             },
             manoeuvresTest: client.tests?.manoeuvresTest || {
               passed: false,
               attempts: 0,
-              lastAttemptDate: null
+              lastAttemptDate: null,
             },
             drivingTest: client.tests?.drivingTest || {
               passed: false,
               attempts: 0,
-              lastAttemptDate: null
-            }
-          }
-        }))
+              lastAttemptDate: null,
+            },
+          },
+        }));
 
-        const filteredClients = data.filter((client) => client.depositSubmitted === true)
-        setClients(filteredClients)
+        const filteredClients = data.filter(
+          (client) => client.depositSubmitted === true && !client.archived
+        );
+        setClients(filteredClients);
       } catch (error) {
-        console.error('Failed to fetch clients:', error)
+        console.error('Failed to fetch clients:', error);
         setDialog({
           isOpen: true,
           message: 'فشل في جلب بيانات المتدربين.',
-          type: 'message'
-        })
+          type: 'message',
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchClients()
-  }, [])
+    fetchClients();
+  }, []);
 
   // Update filtered clients whenever filters or search term change
   useEffect(() => {
-    let filtered = clients
+    let filtered = clients;
 
     // Apply search term filter
     if (searchTerm) {
       filtered = filtered.filter((client) =>
         `${client.first_name_ar} ${client.last_name_ar}`.includes(searchTerm)
-      )
+      );
     }
 
     // Apply test filter
     if (testFilter !== 'all') {
       filtered = filtered.filter((client) => {
         if (testFilter === 'trafficLaw') {
-          return !client.tests.trafficLawTest.passed
+          return !client.tests.trafficLawTest.passed;
         } else if (testFilter === 'manoeuvres') {
-          return !client.tests.manoeuvresTest.passed
+          return !client.tests.manoeuvresTest.passed;
         } else if (testFilter === 'driving') {
-          return !client.tests.drivingTest.passed
+          return !client.tests.drivingTest.passed;
         } else if (testFilter === 'completed') {
           return (
             client.tests.trafficLawTest.passed &&
             client.tests.manoeuvresTest.passed &&
             client.tests.drivingTest.passed
-          )
+          );
         }
-        return true
-      })
+        return true;
+      });
     }
 
     // Apply age filter
     if (ageFilter !== 'all') {
       filtered = filtered.filter((client) => {
-        const age = calculateAge(client.birth_date)
+        const age = calculateAge(client.birth_date);
         if (ageFilter === 'under19') {
-          return age < 19
+          return age < 19;
         } else if (ageFilter === 'above19') {
-          return age >= 19
+          return age >= 19;
         }
-        return true
-      })
+        return true;
+      });
     }
 
-    setFilteredClients(filtered)
-  }, [clients, searchTerm, testFilter, ageFilter])
+    setFilteredClients(filtered);
+  }, [clients, searchTerm, testFilter, ageFilter]);
 
   // Function to calculate age
   const calculateAge = (birthDate) => {
-    if (!birthDate) return null
-    const birth = new Date(birthDate)
-    const today = new Date()
-    let age = today.getFullYear() - birth.getFullYear()
-    const monthDifference = today.getMonth() - birth.getMonth()
-    if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birth.getDate())) {
-      age -= 1
+    if (!birthDate) return null;
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDifference = today.getMonth() - birth.getMonth();
+    if (
+      monthDifference < 0 ||
+      (monthDifference === 0 && today.getDate() < birth.getDate())
+    ) {
+      age -= 1;
     }
-    return age
-  }
+    return age;
+  };
 
   // Handle search term change
   const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value)
-  }
+    setSearchTerm(e.target.value);
+  };
 
   // Handle test filter change
   const handleTestFilterChange = (e) => {
-    setTestFilter(e.target.value)
-  }
+    setTestFilter(e.target.value);
+  };
 
   // Handle age filter change
   const handleAgeFilterChange = (e) => {
-    setAgeFilter(e.target.value)
-  }
+    setAgeFilter(e.target.value);
+  };
 
   // Handle selection of clients
   const handleSelectClient = (client) => {
-    const age = calculateAge(client.birth_date)
+    const age = calculateAge(client.birth_date);
 
     // Prevent selection if the client has passed all tests
     if (
@@ -162,22 +170,22 @@ const Exams = () => {
       setDialog({
         isOpen: true,
         message: `لا يمكن تحديد المتدرب ${client.first_name_ar} ${client.last_name_ar} لأنه اجتاز جميع الاختبارات.`,
-        type: 'message'
-      })
-      return
+        type: 'message',
+      });
+      return;
     }
 
     const isEligibleForDrivingTest =
-      client.tests.trafficLawTest.passed && client.tests.manoeuvresTest.passed
+      client.tests.trafficLawTest.passed && client.tests.manoeuvresTest.passed;
 
     // Prevent selection if the client is under 19 and the next test is driving test
     if (age < 19 && !client.tests.drivingTest.passed && isEligibleForDrivingTest) {
       setDialog({
         isOpen: true,
         message: `لا يمكن تحديد المتدرب ${client.first_name_ar} ${client.last_name_ar} لأنه أقل من 19 عامًا ولا يمكنه اجتياز اختبار القيادة.`,
-        type: 'message'
-      })
-      return
+        type: 'message',
+      });
+      return;
     }
 
     // Limit selection to 15 clients
@@ -188,49 +196,74 @@ const Exams = () => {
       setDialog({
         isOpen: true,
         message: 'يمكنك اختيار 15 متدرب كحد أقصى.',
-        type: 'message'
-      })
-      return
+        type: 'message',
+      });
+      return;
     }
 
     setSelectedClients((prevSelected) => {
       if (prevSelected.find((c) => c.national_id === client.national_id)) {
         // Deselect the client
-        return prevSelected.filter((c) => c.national_id !== client.national_id)
+        return prevSelected.filter((c) => c.national_id !== client.national_id);
       } else {
         // Select the client
-        return [...prevSelected, client]
+        return [...prevSelected, client];
       }
-    })
-  }
+    });
+  };
 
   // Handle edit button click
   const handleEditClient = (client) => {
-    setCurrentClient(client)
-    setIsModalOpen(true)
-  }
+    setCurrentClient(client);
+    setIsModalOpen(true);
+  };
+
+  // Handle archiving a client
+  const handleArchiveClient = async (client) => {
+    try {
+      const updatedClient = { ...client, archived: true };
+      await window.api.updateClient(updatedClient.national_id, updatedClient);
+
+      setClients((prevClients) =>
+        prevClients.filter((c) => c.national_id !== client.national_id)
+      );
+
+      setDialog({
+        isOpen: true,
+        message: `تمت أرشفة المتدرب ${client.first_name_ar} ${client.last_name_ar}.`,
+        type: 'message',
+      });
+    } catch (error) {
+      console.error('Failed to archive client:', error);
+      setDialog({
+        isOpen: true,
+        message: 'فشل في أرشفة المتدرب.',
+        type: 'message',
+      });
+    }
+  };
 
   // Handle saving updated client data
   const handleSaveClient = async (updatedClient) => {
     try {
-      const age = calculateAge(updatedClient.birth_date)
+      const age = calculateAge(updatedClient.birth_date);
       const tests = {
         trafficLawTest: updatedClient.tests.trafficLawTest || {
           passed: false,
           attempts: 0,
-          lastAttemptDate: null
+          lastAttemptDate: null,
         },
         manoeuvresTest: updatedClient.tests.manoeuvresTest || {
           passed: false,
           attempts: 0,
-          lastAttemptDate: null
+          lastAttemptDate: null,
         },
         drivingTest: updatedClient.tests.drivingTest || {
           passed: false,
           attempts: 0,
-          lastAttemptDate: null
-        }
-      }
+          lastAttemptDate: null,
+        },
+      };
 
       if (
         age < 19 &&
@@ -241,119 +274,119 @@ const Exams = () => {
         setDialog({
           isOpen: true,
           message: 'لا يمكن للمتدرب تحت سن 19 اجتياز اختبار القيادة.',
-          type: 'message'
-        })
-        return
+          type: 'message',
+        });
+        return;
       }
 
       const updatedClientWithTests = {
         ...updatedClient,
-        tests
-      }
+        tests,
+      };
 
-      await window.api.updateClient(updatedClientWithTests.national_id, updatedClientWithTests)
+      await window.api.updateClient(updatedClientWithTests.national_id, updatedClientWithTests);
 
       setClients((prevClients) =>
         prevClients.map((client) =>
           client.national_id === updatedClient.national_id ? updatedClientWithTests : client
         )
-      )
+      );
 
-      setIsModalOpen(false)
-      setCurrentClient(null)
+      setIsModalOpen(false);
+      setCurrentClient(null);
     } catch (error) {
-      console.error('Failed to update client:', error)
+      console.error('Failed to update client:', error);
       setDialog({
         isOpen: true,
         message: 'فشل في تحديث بيانات المتدرب.',
-        type: 'message'
-      })
+        type: 'message',
+      });
     }
-  }
+  };
 
   // Handle printing
   const handlePrint = () => {
-    setSelectionMode(true)
-  }
+    setSelectionMode(true);
+  };
 
   // Handle final print action
   const handleFinalPrint = async () => {
-    const clientsData = getSelectedClientsNextTests()
+    const clientsData = getSelectedClientsNextTests();
 
     if (clientsData.length === 0) {
       setDialog({
         isOpen: true,
         message: 'لا يوجد متدربين مؤهلين للطباعة.',
-        type: 'message'
-      })
-      return
+        type: 'message',
+      });
+      return;
     }
 
     try {
       // Generate the Candidates PDF with selected clients' data
-      const outputPath = await window.api.generatePDF('candidates', clientsData)
+      const outputPath = await window.api.generatePDF('candidates', clientsData);
 
       // Automatically open the generated PDF file
-      await window.api.openPath(outputPath)
+      await window.api.openPath(outputPath);
 
       // Notify user that the PDF is opened
       setDialog({
         isOpen: true,
         message: 'تم إنشاء الملف وفتح ملف المترشحين.',
-        type: 'message'
-      })
+        type: 'message',
+      });
     } catch (error) {
       if (error.message.includes('EBUSY')) {
         setDialog({
           isOpen: true,
           message: 'الملف مفتوح بالفعل. يرجى إغلاقه والمحاولة مرة أخرى.',
-          type: 'message'
-        })
+          type: 'message',
+        });
       } else {
-        console.error('Failed to generate or open PDF:', error)
+        console.error('Failed to generate or open PDF:', error);
         setDialog({
           isOpen: true,
           message: 'فشل في إنشاء أو فتح ملف PDF.',
-          type: 'message'
-        })
+          type: 'message',
+        });
       }
     }
 
-    setSelectionMode(false)
-    setSelectedClients([])
-  }
+    setSelectionMode(false);
+    setSelectedClients([]);
+  };
 
   // Function to get data for selected clients
   const getSelectedClientsNextTests = () => {
     return selectedClients.map((client) => {
-      const nextTest = getNextTestForClient(client)
+      const nextTest = getNextTestForClient(client);
 
       return {
         fullName: `${client.first_name_ar || ''} ${client.last_name_ar || ''}`,
         register_number: client.register_number || '', // Updated to match your data structure
         birthDate: client.birth_date || 'غير متوفر',
-        nextTest: nextTest
-      }
-    })
-  }
+        nextTest: nextTest,
+      };
+    });
+  };
 
   // Function to determine the next test for a client
   const getNextTestForClient = (client) => {
-    const age = calculateAge(client.birth_date)
+    const age = calculateAge(client.birth_date);
     if (!client.tests.trafficLawTest.passed) {
-      return 'اختبار قانون المرور'
+      return 'اختبار قانون المرور';
     } else if (!client.tests.manoeuvresTest.passed) {
-      return 'اختبار المناورات'
+      return 'اختبار المناورات';
     } else if (!client.tests.drivingTest.passed) {
       if (age >= 19) {
-        return 'اختبار القيادة'
+        return 'اختبار القيادة';
       } else {
-        return 'غير مؤهل لاختبار القيادة (العمر أقل من 19)'
+        return 'غير مؤهل لاختبار القيادة (العمر أقل من 19)';
       }
     } else {
-      return 'اجتاز جميع الاختبارات'
+      return 'اجتاز جميع الاختبارات';
     }
-  }
+  };
 
   return (
     <div dir="rtl" className="w-screen h-screen flex flex-col overflow-auto bg-gray-100">
@@ -411,8 +444,8 @@ const Exams = () => {
             <div className="flex justify-between items-center mb-4">
               <button
                 onClick={() => {
-                  setSelectionMode(false)
-                  setSelectedClients([])
+                  setSelectionMode(false);
+                  setSelectedClients([]);
                 }}
                 className="bg-gray-500 text-white hover:bg-gray-600 px-4 py-2 rounded-full transition duration-300 text-lg font-semibold"
               >
@@ -432,7 +465,9 @@ const Exams = () => {
 
         <div className="bg-white rounded-3xl shadow-lg w-full max-w-5xl p-4 sm:p-8">
           {loading ? (
-            <p className="text-lg sm:text-xl text-gray-700 text-center">جاري تحميل البيانات...</p>
+            <p className="text-lg sm:text-xl text-gray-700 text-center">
+              جاري تحميل البيانات...
+            </p>
           ) : filteredClients.length === 0 ? (
             <p className="text-lg sm:text-xl text-gray-700 text-center">
               لا يوجد متدربين يطابقون البحث.
@@ -443,9 +478,12 @@ const Exams = () => {
                 <ClientCard
                   key={client.national_id}
                   client={client}
-                  isSelected={selectedClients.some((c) => c.national_id === client.national_id)}
+                  isSelected={selectedClients.some(
+                    (c) => c.national_id === client.national_id
+                  )}
                   onSelect={handleSelectClient}
                   onEdit={handleEditClient}
+                  onArchiveClient={handleArchiveClient} // Pass the function here
                   selectionMode={selectionMode}
                   calculateAge={calculateAge}
                 />
@@ -459,8 +497,8 @@ const Exams = () => {
         <EditClientModal
           isOpen={isModalOpen}
           onClose={() => {
-            setIsModalOpen(false)
-            setCurrentClient(null)
+            setIsModalOpen(false);
+            setCurrentClient(null);
           }}
           client={currentClient}
           calculateAge={calculateAge}
@@ -477,7 +515,7 @@ const Exams = () => {
         onClose={() => setDialog({ ...dialog, isOpen: false })}
       />
     </div>
-  )
-}
+  );
+};
 
-export default Exams
+export default Exams;
