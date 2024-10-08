@@ -2,6 +2,7 @@ import { PDFDocument, rgb, degrees } from 'pdf-lib'
 import fs from 'fs'
 import path from 'path'
 import fontkit from '@pdf-lib/fontkit'
+import { app } from 'electron'
 
 // Function to load the Amiri font
 const loadFont = async () => {
@@ -25,72 +26,83 @@ function drawTextWithArabicSupport(page, text, x, y, font, size, color, rotate =
 
 // Function to generate the deposit portfolio PDF
 const generateDepositPortfolioPDF = async (selectedClients) => {
-  const templatePath = path.join(__dirname, '../templates/ملف الإيداع.pdf') // Ensure you have the correct template
-  if (!fs.existsSync(templatePath)) {
-    throw new Error(`Template file not found at path: ${templatePath}`)
-  }
+  try {
+    const templatePath = path.join(__dirname, '../templates/ملف الإيداع.pdf')
 
-  const existingPdfBytes = fs.readFileSync(templatePath)
-  const pdfDoc = await PDFDocument.load(existingPdfBytes)
+    // Check if the template exists; if not, throw an error
+    if (!fs.existsSync(templatePath)) {
+      throw new Error(`Template file not found at path: ${templatePath}`)
+    }
 
-  pdfDoc.registerFontkit(fontkit)
+    const existingPdfBytes = fs.readFileSync(templatePath)
+    const pdfDoc = await PDFDocument.load(existingPdfBytes)
 
-  const amiriFontBytes = await loadFont()
-  const amiriFont = await pdfDoc.embedFont(amiriFontBytes)
+    pdfDoc.registerFontkit(fontkit)
 
-  const pages = pdfDoc.getPages()
-  if (pages.length === 0) {
-    throw new Error('No pages found in the PDF document.')
-  }
+    const amiriFontBytes = await loadFont()
+    const amiriFont = await pdfDoc.embedFont(amiriFontBytes)
 
-  const firstPage = pages[0]
-  const pageHeight = firstPage.getHeight()
+    const pages = pdfDoc.getPages()
+    if (pages.length === 0) {
+      throw new Error('No pages found in the PDF document.')
+    }
 
-  // Adjust the starting Y position and set consistent gap between names
-  const startingY = pageHeight - 285
-  const gap = 22 // Set consistent gap between lines
+    const firstPage = pages[0]
+    const pageHeight = firstPage.getHeight()
 
-  // Draw the list of 15 clients' names
-  selectedClients.slice(0, 15).forEach((client, index) => {
-    const clientFullName = `${client.first_name_ar || ''} ${client.last_name_ar || ''}` // Full name
+    // Adjust the starting Y position and set consistent gap between names
+    const startingY = pageHeight - 285
+    const gap = 22 // Set consistent gap between lines
 
-    // Adjust position dynamically for each client entry
-    const yOffset = startingY - index * gap // Ensure consistent vertical gap
+    // Draw the list of 15 clients' names
+    selectedClients.slice(0, 15).forEach((client, index) => {
+      const clientFullName = `${client.first_name_ar || ''} ${client.last_name_ar || ''}`
 
-    // Draw the full name
+      // Adjust position dynamically for each client entry
+      const yOffset = startingY - index * gap
+
+      // Draw the full name
+      drawTextWithArabicSupport(
+        firstPage,
+        reverseNumbersInString(clientFullName),
+        550,
+        yOffset,
+        amiriFont,
+        13,
+        rgb(0, 0, 0)
+      )
+    })
+
+    // Optionally, print the current year in the document
+    const currentYear = new Date().getFullYear().toString()
     drawTextWithArabicSupport(
       firstPage,
-      reverseNumbersInString(clientFullName),
-      550,
-      yOffset,
+      currentYear,
+      535,
+      pageHeight - 205,
       amiriFont,
       13,
       rgb(0, 0, 0)
     )
-  })
 
-  // Optionally, you can print the current year in the document
-  const currentYear = new Date().getFullYear().toString()
-  drawTextWithArabicSupport(
-    firstPage,
-    currentYear,
-    535,
-    pageHeight - 205,
-    amiriFont,
-    13,
-    rgb(0, 0, 0)
-  )
+    const outputDir = path.join(app.getPath('userData'), 'clients')
+    const outputPath = path.join(outputDir, 'ملف الإيداع.pdf')
 
-  // Save the PDF with the current year in the filename
-  const outputPath = path.join(__dirname, '../output', `ملف_الإيداع_${currentYear}.pdf`)
-  if (!fs.existsSync(path.dirname(outputPath))) {
-    fs.mkdirSync(path.dirname(outputPath), { recursive: true })
+    // Ensure the output directory exists
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true })
+    }
+
+    // Save the generated PDF in the output directory
+    const pdfBytes = await pdfDoc.save()
+    fs.writeFileSync(outputPath, pdfBytes)
+
+    return outputPath
+  } catch (error) {
+    // Handle errors during PDF generation
+    console.error('Error generating Deposit Portfolio PDF:', error)
+    throw error
   }
-
-  const pdfBytes = await pdfDoc.save()
-  fs.writeFileSync(outputPath, pdfBytes)
-
-  return outputPath
 }
 
 // Reverse numbers in the string (useful for Arabic formatting)

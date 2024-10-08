@@ -121,50 +121,48 @@ const Register = () => {
   const [dialogMessage, setDialogMessage] = useState('')
 
   // Validation function for form inputs
-  const validateForm = () => {
-    const { national_id, phone_number, paid, birth_date } = formData
+  const validateForm = useCallback(() => {
+    const { national_id, phone_number, paid, birth_date, subPrice } = formData;
 
     if (national_id.length !== 18) {
-      setError('رقم التعريف الوطني يجب أن يتكون من 18 رقم.')
-      setDialogMessage('رقم التعريف الوطني يجب أن يتكون من 18 رقم.')
-      setDialogType('error')
-      setDialogOpen(true)
-      return false
+      setError('رقم التعريف الوطني يجب أن يتكون من 18 رقم.');
+      setDialogMessage('رقم التعريف الوطني يجب أن يتكون من 18 رقم.');
+      setDialogType('error');
+      setDialogOpen(true);
+      return false;
     }
 
-    if (phone_number.length !== 10) {
-      setError('رقم الهاتف يجب أن يتكون من 10 أرقام.')
-      setDialogMessage('رقم الهاتف يجب أن يتكون من 10 أرقام.')
-      setDialogType('error')
-      setDialogOpen(true)
-      return false
+    if (!/^\d{10}$/.test(phone_number)) { // Regex for 10 digits phone number
+      setError('رقم الهاتف يجب أن يتكون من 10 أرقام.');
+      setDialogMessage('رقم الهاتف يجب أن يتكون من 10 أرقام.');
+      setDialogType('error');
+      setDialogOpen(true);
+      return false;
     }
 
-    const currentDate = new Date()
-    const birthDate = new Date(birth_date)
-    const minDate = new Date(
-      currentDate.getFullYear() - 18,
-      currentDate.getMonth(),
-      currentDate.getDate()
-    ) // Minimum age 18
+    const currentDate = new Date();
+    const birthDate = new Date(birth_date);
+    const minDate = new Date(currentDate.getFullYear() - 18, currentDate.getMonth(), currentDate.getDate());
+
     if (birthDate > currentDate || birthDate > minDate) {
-      setError('تاريخ الميلاد غير صالح. يجب أن يكون عمر المتدرب 18 عامًا على الأقل.')
-      setDialogMessage('تاريخ الميلاد غير صالح. يجب أن يكون عمر المتدرب 18 عامًا على الأقل.')
-      setDialogType('error')
-      setDialogOpen(true)
-      return false
+      setError('تاريخ الميلاد غير صالح. يجب أن يكون عمر المتدرب 18 عامًا على الأقل.');
+      setDialogMessage('تاريخ الميلاد غير صالح. يجب أن يكون عمر المتدرب 18 عامًا على الأقل.');
+      setDialogType('error');
+      setDialogOpen(true);
+      return false;
     }
 
-    if (paid < 0 || paid > formData.subPrice) {
-      setError('المبلغ المدفوع غير صحيح.')
-      setDialogMessage('المبلغ المدفوع غير صحيح.')
-      setDialogType('error')
-      setDialogOpen(true)
-      return false
+    if (paid < 0 || paid > subPrice) {
+      setError('المبلغ المدفوع غير صحيح.');
+      setDialogMessage('المبلغ المدفوع غير صحيح.');
+      setDialogType('error');
+      setDialogOpen(true);
+      return false;
     }
 
-    return true
-  }
+    return true;
+  }, [formData]); // Only recompute validation when formData changes
+
 
   // Generic handleChange function for inputs
   const handleChange = useCallback((e) => {
@@ -182,24 +180,21 @@ const Register = () => {
   }, [])
 
   // Function to handle form submission
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!validateForm()) {
-      return // Stop submission if validation fails
+      return;
     }
 
     try {
-      const path = await window.api.generateClientPath(
-        formData.first_name_ar,
-        formData.last_name_ar
-      )
-      const updatedFormData = { ...formData, path }
+      const path = await window.api.generateClientPath(formData.first_name_ar, formData.last_name_ar);
+      const updatedFormData = { ...formData, path };
 
-      await window.api.createClient(updatedFormData)
-      setSuccess('تم حفظ البيانات بنجاح!')
-      setError(null)
-      setDialogMessage('تم حفظ البيانات بنجاح!')
-      setDialogType('message')
-      setDialogOpen(true)
+      await window.api.createClient(updatedFormData);
+      setSuccess('تم حفظ البيانات بنجاح!');
+      setError(null);
+      setDialogMessage('تم حفظ البيانات بنجاح!');
+      setDialogType('message');
+      setDialogOpen(true);
 
       // Reset form after successful submission
       setFormData({
@@ -229,19 +224,19 @@ const Register = () => {
         paid: 0,
         depositSubmitted: false,
         tests: {
-          // Reset tests
           trafficLawTest: { passed: false, attempts: 0, lastAttemptDate: null },
           manoeuvresTest: { passed: false, attempts: 0, lastAttemptDate: null },
-          drivingTest: { passed: false, attempts: 0, lastAttemptDate: null }
-        }
-      })
+          drivingTest: { passed: false, attempts: 0, lastAttemptDate: null },
+        },
+      });
     } catch (err) {
-      setError(`حدث خطأ: ${err.message}`)
-      setDialogMessage(`حدث خطأ: ${err.message}`)
-      setDialogType('error')
-      setDialogOpen(true)
+      setError(`حدث خطأ: ${err.message}`);
+      setDialogMessage(`حدث خطأ: ${err.message}`);
+      setDialogType('error');
+      setDialogOpen(true);
     }
-  }
+  }, [validateForm, formData]);
+
 
   const closeDialog = () => {
     setDialogOpen(false)
@@ -305,10 +300,10 @@ const Register = () => {
               icon={faIdCard}
               name="national_id"
               value={formData.national_id}
-              placeholder="رقم التعريف الوطني - 16 رقم"
+              placeholder="رقم التعريف الوطني - 18 رقم"
               onChange={handleChange}
-              pattern="\d{16}"
-              maxLength="16"
+              pattern="\d{18}"
+              maxLength="18"
               iconColor="text-blue-500"
             />
             <SelectField
@@ -467,7 +462,18 @@ const Register = () => {
             />
           </div>
         </div>
-
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold mb-6 text-gray-700">تاريخ التسجيل</h2>
+          <InputField
+            icon={faCalendarAlt}
+            name="register_date"
+            type="date"
+            value={formData.register_date}
+            placeholder="تاريخ التسجيل"
+            onChange={handleChange}
+            iconColor="text-yellow-500"
+          />
+        </div>
         {/* Nationality Information */}
         <div className="mb-8">
           <h2 className="text-2xl font-semibold mb-6 text-gray-700">الجنسية</h2>

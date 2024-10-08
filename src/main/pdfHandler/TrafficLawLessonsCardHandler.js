@@ -147,7 +147,7 @@ const generateTrafficLawLessonsCardPDF = async (clientData) => {
   // Draw current address on one line
   drawTextWithArabicSupport(
     page,
-    client.currentAddress,
+    reverseNumbersInString( client.currentAddress),
     510,
     pageHeight - 190,
     amiriFont,

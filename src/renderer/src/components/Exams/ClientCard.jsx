@@ -1,6 +1,6 @@
 // ClientCard.jsx
 
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faUser,
   faBirthdayCake,
@@ -9,27 +9,27 @@ import {
   faPen,
   faCheckCircle,
   faTimesCircle,
-  faArchive, // Import archive icon
-} from '@fortawesome/free-solid-svg-icons';
+  faArchive // Import archive icon
+} from '@fortawesome/free-solid-svg-icons'
 
 const ClientCard = ({
   client,
   isSelected,
   onSelect,
   onEdit,
-  onArchiveClient, // Add this prop
+  onArchiveClient, // Add this prop to handle archiving
   selectionMode,
-  calculateAge,
+  calculateAge
 }) => {
-  const { trafficLawTest, manoeuvresTest, drivingTest } = client.tests;
-  const age = calculateAge(client.birth_date);
+  // Destructure test results for easier access
+  const { trafficLawTest, manoeuvresTest, drivingTest } = client.tests
+  const age = calculateAge(client.birth_date)
 
   // Determine if the client has passed all tests
-  const hasPassedAllTests =
-    trafficLawTest.passed && manoeuvresTest.passed && drivingTest.passed;
+  const hasPassedAllTests = trafficLawTest.passed && manoeuvresTest.passed && drivingTest.passed
 
   // Determine if the client has paid all dues
-  const hasPaidAllDues = client.paid >= client.subPrice;
+  const hasPaidAllDues = client.paid >= client.subPrice
 
   return (
     <div
@@ -45,6 +45,7 @@ const ClientCard = ({
         <FontAwesomeIcon icon={faPen} className="h-5 w-5" />
       </button>
 
+      {/* Checkbox for selection mode */}
       {selectionMode && (
         <input
           type="checkbox"
@@ -60,10 +61,11 @@ const ClientCard = ({
           <ClientDetails client={client} calculateAge={calculateAge} />
           <TestResult test={trafficLawTest} label="اختبار قانون المرور" />
           <TestResult test={manoeuvresTest} label="اختبار المناورات" />
+          {/* Driving Test should only be enabled if the client is 18 or older */}
           <TestResult
             test={drivingTest}
             label="اختبار القيادة"
-            disabled={age < 19}
+            disabled={age < 18} // Disabled for clients under 18
           />
         </div>
       </div>
@@ -81,9 +83,10 @@ const ClientCard = ({
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
+// Component to display basic client details (name, age, register number, etc.)
 const ClientDetails = ({ client, calculateAge }) => (
   <>
     <div className="flex items-center">
@@ -93,35 +96,22 @@ const ClientDetails = ({ client, calculateAge }) => (
       </span>
     </div>
     <div className="flex items-center">
-      <FontAwesomeIcon
-        icon={faBirthdayCake}
-        className="text-yellow-500 h-6 w-6 ml-2"
-      />
-      <span className="text-lg text-gray-600">{`العمر: ${calculateAge(
-        client.birth_date
-      )}`}</span>
+      <FontAwesomeIcon icon={faBirthdayCake} className="text-yellow-500 h-6 w-6 ml-2" />
+      <span className="text-lg text-gray-600">{`العمر: ${calculateAge(client.birth_date)}`}</span>
     </div>
     {client.register_number && (
       <div className="flex items-center">
-        <FontAwesomeIcon
-          icon={faIdCard}
-          className="text-blue-500 h-6 w-6 ml-2"
-        />
+        <FontAwesomeIcon icon={faIdCard} className="text-blue-500 h-6 w-6 ml-2" />
         <span className="text-lg text-gray-600">{`رقم التسجيل: ${client.register_number}`}</span>
       </div>
     )}
     <div className="flex items-center">
-      <FontAwesomeIcon
-        icon={faCalendarAlt}
-        className="text-pink-500 h-6 w-6 ml-2"
-      />
+      <FontAwesomeIcon icon={faCalendarAlt} className="text-pink-500 h-6 w-6 ml-2" />
       <span className="text-lg text-gray-600">
-        {client?.birth_date
-          ? `تاريخ الميلاد: ${client.birth_date}`
-          : 'تاريخ الميلاد غير متوفر'}
+        {client?.birth_date ? `تاريخ الميلاد: ${client.birth_date}` : 'تاريخ الميلاد غير متوفر'}
       </span>
     </div>
-    {/* Display amount paid and amount due */}
+    {/* Display the amount paid and the amount due */}
     <div className="flex items-center">
       <span className="text-lg text-gray-600">{`المبلغ المدفوع: ${client.paid} DA`}</span>
     </div>
@@ -129,15 +119,14 @@ const ClientDetails = ({ client, calculateAge }) => (
       <span className="text-lg text-gray-600">{`المبلغ المستحق: ${client.subPrice} DA`}</span>
     </div>
   </>
-);
+)
 
+// Component to display the test result (passed, attempts, last attempt date)
 const TestResult = ({ test, label, disabled }) => (
   <div className={`flex items-center ${disabled ? 'opacity-50' : ''}`}>
     <FontAwesomeIcon
       icon={test.passed ? faCheckCircle : faTimesCircle}
-      className={`${
-        test.passed ? 'text-green-500' : 'text-red-500'
-      } h-6 w-6 ml-2`}
+      className={`${test.passed ? 'text-green-500' : 'text-red-500'} h-6 w-6 ml-2`}
     />
     <span className="text-lg text-gray-600">
       {test.passed ? `اجتاز ${label}` : `لم يجتز ${label}`}
@@ -147,6 +136,6 @@ const TestResult = ({ test, label, disabled }) => (
       {test.lastAttemptDate ? `آخر محاولة: ${test.lastAttemptDate}` : 'لا توجد محاولة'})
     </span>
   </div>
-);
+)
 
-export default ClientCard;
+export default ClientCard

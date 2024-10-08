@@ -11,7 +11,6 @@ import {
   faFlag,
   faHome,
   faSave,
-  faTrashAlt,
   faMoneyBill
 } from '@fortawesome/free-solid-svg-icons'
 
@@ -103,11 +102,11 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
               <input
                 type="text"
                 name="national_id"
-                placeholder="رقم التعريف الوطني - 16 رقم"
+                placeholder="رقم التعريف الوطني - 18 رقم"
                 value={formData.national_id}
                 onChange={handleChange}
                 className="w-full p-3 bg-transparent text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                maxLength="16"
+                maxLength="18"
                 pattern="\d*"
               />
             </div>
@@ -193,6 +192,26 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
                 value={formData.birth_state}
                 onChange={handleChange}
                 className="w-full p-3 bg-transparent text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Registration Date */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-semibold mb-6 text-gray-700">تاريخ التسجيل</h2>
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1">
+            <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+              <FontAwesomeIcon icon={faCalendarAlt} className="text-yellow-500 text-2xl ml-3" />
+              <input
+                type="date"
+                name="register_date"
+                placeholder="تاريخ التسجيل"
+                value={formData.register_date || new Date().toISOString().split('T')[0]}
+                onChange={handleChange}
+                className="w-full p-3 bg-transparent text-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
               />
             </div>
           </div>

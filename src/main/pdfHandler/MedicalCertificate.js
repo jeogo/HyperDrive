@@ -56,7 +56,7 @@ const MedicalCertificate = async (clientData) => {
   const lastName = clientData.last_name_ar || '';
   const birthDetails = reverseNumbersInString(`${clientData.birth_place || ''} - ${formattedBirthDate}`);
   const address = reverseNumbersInString(clientData.current_address || '');
-  const phone = reverseNumbersInString(clientData.phone_number || '');
+  const phone = clientData?.phone_number || '';
 
   // Now control both x and y positions with RTL text support using variables
   drawRightToLeftText(page, firstName, 530, pageHeight - 168, amiriFont, 14, rgb(0, 0, 0)); // First name

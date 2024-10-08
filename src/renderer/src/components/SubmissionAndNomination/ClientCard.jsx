@@ -4,7 +4,8 @@ import {
   faUser,
   faCalendarCheck,
   faCheckCircle,
-  faTimesCircle
+  faTimesCircle,
+  faPrint
 } from '@fortawesome/free-solid-svg-icons'
 
 const ClientCard = ({ client, isSelected, onSelect, showCheckbox }) => {
@@ -38,6 +39,12 @@ const ClientCard = ({ client, isSelected, onSelect, showCheckbox }) => {
   const depositStatusText = depositSubmitted
     ? 'مضاف إلى حافظة الإيداع'
     : 'غير مضاف إلى حافظة الإيداع'
+
+  // Printed status
+  const printed = client.printed || false
+  const printedStatusIcon = printed ? faCheckCircle : faTimesCircle
+  const printedStatusColor = printed ? 'text-green-500' : 'text-red-500'
+  const printedStatusText = printed ? 'تمت الطباعة' : 'لم يتم الطباعة'
 
   return (
     <div
@@ -91,6 +98,14 @@ const ClientCard = ({ client, isSelected, onSelect, showCheckbox }) => {
               className={`${depositStatusColor} h-6 w-6 ml-2`}
             />
             <span className="text-lg text-gray-600">{depositStatusText}</span>
+          </div>
+
+          <div className="flex items-center">
+            <FontAwesomeIcon
+              icon={printedStatusIcon}
+              className={`${printedStatusColor} h-6 w-6 ml-2`}
+            />
+            <span className="text-lg text-gray-600">{printedStatusText}</span>
           </div>
         </div>
       </div>

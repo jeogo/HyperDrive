@@ -1,9 +1,7 @@
-// SubmissionAndNomination.jsx
-
 import { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar'
 import ClientCard from '../components/SubmissionAndNomination/ClientCard'
-import ActionDialog from '../components/Messages/ActionDialog' // Import your ActionDialog for better alerts and confirmations
+import ActionDialog from '../components/Messages/ActionDialog'
 
 const SubmissionAndNomination = () => {
   const [clients, setClients] = useState([])
@@ -12,7 +10,7 @@ const SubmissionAndNomination = () => {
   const [viewMode, setViewMode] = useState('default') // 'default', 'addToDeposit', 'printDeposit'
   const [filter, setFilter] = useState('all') // 'all', 'added', 'notAdded'
   const [searchTerm, setSearchTerm] = useState('') // For search input
-  const [dialog, setDialog] = useState({ isOpen: false, message: '', type: 'message' }) // Dialog for alerts or confirmations
+  const [dialog, setDialog] = useState({ isOpen: false, message: '', type: 'message' })
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -123,9 +121,22 @@ const SubmissionAndNomination = () => {
         // Attempt to generate the PDF again after closing the dialog
         const outputPath = await window.api.generatePDF('depositPortfolio', selectedClients)
         await window.api.openPath(outputPath)
+
+        // Mark clients as printed
+        const updatedClients = selectedClients.map(client => ({ ...client, printed: true }))
+        for (const client of updatedClients) {
+          await window.api.updateClient(client.national_id, client)
+        }
+
+        setClients((prevClients) =>
+          prevClients.map(
+            (client) => updatedClients.find((uc) => uc.national_id === client.national_id) || client
+          )
+        )
+
         setDialog({
           isOpen: true,
-          message: 'تم إنشاء الملف وفتح حافظة الإيداع.',
+          message: 'تم إنشاء الملف وفتح حافظة الإيداع. المتدربين تم وضع علامة مطبوعة عليهم.',
           type: 'message'
         })
       } catch (error) {
@@ -135,7 +146,6 @@ const SubmissionAndNomination = () => {
             message: 'الملف مفتوح أو مغلق، يرجى إغلاق الملف والمحاولة مرة أخرى.',
             type: 'confirm',
             onConfirm: async () => {
-              // Allow the user to retry generating the PDF
               await handleRetry()
             },
             onCancel: () => {
@@ -157,40 +167,7 @@ const SubmissionAndNomination = () => {
       message: 'هل أنت متأكد من طباعة حافظة الإيداع للمتدربين المحددين؟',
       type: 'confirm',
       onConfirm: async () => {
-        try {
-          // Generate the deposit portfolio PDF with selected clients
-          const outputPath = await window.api.generatePDF('depositPortfolio', selectedClients)
-
-          // Automatically open the generated PDF file
-          await window.api.openPath(outputPath)
-
-          // Notify user that the PDF is opened
-          setDialog({
-            isOpen: true,
-            message: 'تم إنشاء الملف وفتح حافظة الإيداع.',
-            type: 'message'
-          })
-        } catch (error) {
-          if (error.message.includes('EBUSY')) {
-            setDialog({
-              isOpen: true,
-              message: 'الملف مفتوح أو مغلق، يرجى إغلاق الملف والمحاولة مرة أخرى.',
-              type: 'confirm',
-              onConfirm: async () => {
-                await handleRetry()
-              },
-              onCancel: () => {
-                setDialog({ ...dialog, isOpen: false })
-              }
-            })
-          } else {
-            setDialog({
-              isOpen: true,
-              message: 'فشل في إنشاء أو فتح ملف PDF. يرجى المحاولة لاحقًا.',
-              type: 'message'
-            })
-          }
-        }
+        await handleRetry()
         setViewMode('default')
         setSelectedClients([])
       },
@@ -311,7 +288,9 @@ const SubmissionAndNomination = () => {
                   client={client}
                   isSelected={selectedClients.some((c) => c.national_id === client.national_id)}
                   onSelect={handleSelectClient}
-                  showCheckbox={viewMode !== 'default'} // Show checkbox only when viewMode is addToDeposit or printDeposit
+                  showCheckbox={viewMode !== 'default'}
+                  depositSubmitted={client.depositSubmitted}
+                  printed={client.printed}
                 />
               ))}
             </div>
