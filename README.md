@@ -1,4 +1,3 @@
-
 # HyperDrive
 
 ## مقدمة - Introduction
@@ -175,3 +174,27 @@ This project is licensed under the  **MIT License** .
 ---
 
 This README file will make your project more approachable for both Arabic-speaking users and international contributors.
+
+user CRUD
+
+CREATE : name , card number, date of birth
+
+READ : ---------------------------------------
+
+UPADE:
+
+DELETE:
+
+table client---------
+
+id
+
+name
+
+datebirth
+
+blood type
+
+operation
+
+---

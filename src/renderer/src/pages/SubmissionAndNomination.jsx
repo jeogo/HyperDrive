@@ -7,8 +7,8 @@ const SubmissionAndNomination = () => {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedClients, setSelectedClients] = useState([])
-  const [viewMode, setViewMode] = useState('default') // 'default', 'addToDeposit', 'printDeposit'
-  const [filter, setFilter] = useState('all') // 'all', 'added', 'notAdded'
+  const [viewMode, setViewMode] = useState('default') // 'default' or 'printDeposit'
+  const [filter, setFilter] = useState('all') // 'all', 'printed', 'notPrinted'
   const [searchTerm, setSearchTerm] = useState('') // For search input
   const [dialog, setDialog] = useState({ isOpen: false, message: '', type: 'message' })
 
@@ -36,7 +36,7 @@ const SubmissionAndNomination = () => {
     fetchClients()
   }, [])
 
-  // Handle client selection with a limit of 15 clients for both add and print
+  // Handle client selection with a limit of 15 clients for printing
   const handleSelectClient = (client) => {
     setSelectedClients((prevSelected) => {
       if (prevSelected.some((c) => c.national_id === client.national_id)) {
@@ -55,57 +55,13 @@ const SubmissionAndNomination = () => {
     })
   }
 
-  // Set modes for adding or printing deposit folder
-  const handleAddToDeposit = () => {
-    setViewMode('addToDeposit')
-    setSelectedClients([]) // Clear selections when switching modes
-  }
-
+  // Set mode for printing deposit folder
   const handlePrintDeposit = () => {
     setViewMode('printDeposit')
     setSelectedClients([]) // Clear selections when switching modes
   }
 
-  // Confirm actions for deposit or print
-  const confirmAddToDeposit = async () => {
-    if (selectedClients.length < 1) {
-      setDialog({
-        isOpen: true,
-        message: 'يرجى تحديد متدرب واحد على الأقل.',
-        type: 'message'
-      })
-      return
-    }
-
-    setDialog({
-      isOpen: true,
-      message: 'هل أنت متأكد من إضافة المتدربين إلى حافظة الإيداع؟',
-      type: 'confirm',
-      onConfirm: async () => {
-        const updatedClients = []
-        for (const client of selectedClients) {
-          const updatedClient = { ...client, depositSubmitted: true }
-          await window.api.updateClient(client.national_id, updatedClient)
-          updatedClients.push(updatedClient)
-        }
-
-        setClients((prevClients) =>
-          prevClients.map(
-            (client) => updatedClients.find((uc) => uc.national_id === client.national_id) || client
-          )
-        )
-
-        setDialog({
-          isOpen: true,
-          message: 'تمت إضافة المتدربين إلى حافظة الإيداع.',
-          type: 'message'
-        })
-        setViewMode('default')
-        setSelectedClients([])
-      }
-    })
-  }
-
+  // Confirm action for printing
   const confirmPrintDeposit = async () => {
     if (selectedClients.length < 1) {
       setDialog({
@@ -123,7 +79,7 @@ const SubmissionAndNomination = () => {
         await window.api.openPath(outputPath)
 
         // Mark clients as printed
-        const updatedClients = selectedClients.map(client => ({ ...client, printed: true }))
+        const updatedClients = selectedClients.map((client) => ({ ...client, printed: true }))
         for (const client of updatedClients) {
           await window.api.updateClient(client.national_id, client)
         }
@@ -177,20 +133,20 @@ const SubmissionAndNomination = () => {
     })
   }
 
-  // Filter clients based on the mode and deposit status
+  // Filter clients based on printed status and search term
   const filteredClients = clients.filter((client) => {
     const matchesSearch =
       client.first_name_ar.includes(searchTerm) || client.last_name_ar.includes(searchTerm)
     if (!matchesSearch) return false
 
-    if (filter === 'added') return client.depositSubmitted
-    if (filter === 'notAdded') return !client.depositSubmitted
+    if (filter === 'printed') return client.printed
+    if (filter === 'notPrinted') return !client.printed
     return true
   })
 
+  // Display clients based on the current view mode
   const displayedClients = filteredClients.filter((client) => {
-    if (viewMode === 'addToDeposit') return !client.depositSubmitted
-    if (viewMode === 'printDeposit') return client.depositSubmitted
+    if (viewMode === 'printDeposit') return true // All clients are eligible for printing
     return true
   })
 
@@ -206,8 +162,8 @@ const SubmissionAndNomination = () => {
           className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">جميع المتدربين</option>
-          <option value="added">مضاف إلى حافظة الإيداع</option>
-          <option value="notAdded">غير مضاف إلى حافظة الإيداع</option>
+          <option value="printed">مطبوعة</option>
+          <option value="notPrinted">غير مطبوعة</option>
         </select>
 
         {/* Search input for filtering clients by name */}
@@ -220,42 +176,24 @@ const SubmissionAndNomination = () => {
         />
 
         <button
-          onClick={handleAddToDeposit}
-          className={`${
-            viewMode === 'addToDeposit' ? 'bg-blue-700' : 'bg-blue-600'
-          } text-white hover:bg-blue-700 px-4 py-2 rounded-full transition duration-300 flex-1`}
-        >
-          اضافة الى حافظة الاداع
-        </button>
-        <button
           onClick={handlePrintDeposit}
           className={`${
             viewMode === 'printDeposit' ? 'bg-green-700' : 'bg-green-600'
           } text-white hover:bg-green-700 px-4 py-2 rounded-full transition duration-300 flex-1`}
         >
-          طباعة حافظة الاداع
+          طباعة حافظة الإيداع
         </button>
       </div>
 
-      {/* Bulk Action Buttons */}
-      {selectedClients.length > 0 && (
+      {/* Bulk Action Button */}
+      {selectedClients.length > 0 && viewMode === 'printDeposit' && (
         <div className="w-full max-w-5xl mx-auto mt-4 flex flex-col sm:flex-row gap-4">
-          {viewMode === 'addToDeposit' && (
-            <button
-              onClick={confirmAddToDeposit}
-              className="bg-purple-600 text-white hover:bg-purple-700 px-4 py-2 rounded-full transition duration-300 w-full"
-            >
-              تأكيد الإضافة إلى حافظة الإيداع
-            </button>
-          )}
-          {viewMode === 'printDeposit' && (
-            <button
-              onClick={confirmPrintDeposit}
-              className="bg-orange-600 text-white hover:bg-orange-700 px-4 py-2 rounded-full transition duration-300 w-full"
-            >
-              تأكيد طباعة حافظة الإيداع
-            </button>
-          )}
+          <button
+            onClick={confirmPrintDeposit}
+            className="bg-orange-600 text-white hover:bg-orange-700 px-4 py-2 rounded-full transition duration-300 w-full"
+          >
+            تأكيد طباعة حافظة الإيداع
+          </button>
         </div>
       )}
 
@@ -276,9 +214,7 @@ const SubmissionAndNomination = () => {
             <p className="text-lg sm:text-xl text-gray-700 text-center">جاري تحميل البيانات...</p>
           ) : displayedClients.length === 0 ? (
             <p className="text-lg sm:text-xl text-gray-700 text-center">
-              {viewMode === 'addToDeposit'
-                ? 'لا يوجد متقدمين للإضافة إلى حافظة الإيداع.'
-                : 'لا يوجد متقدمين في حافظة الإيداع للطباعة.'}
+              لا يوجد متقدمين متاحين للطباعة.
             </p>
           ) : (
             <div className="flex flex-col gap-6">
@@ -288,8 +224,7 @@ const SubmissionAndNomination = () => {
                   client={client}
                   isSelected={selectedClients.some((c) => c.national_id === client.national_id)}
                   onSelect={handleSelectClient}
-                  showCheckbox={viewMode !== 'default'}
-                  depositSubmitted={client.depositSubmitted}
+                  showCheckbox={viewMode === 'printDeposit'}
                   printed={client.printed}
                 />
               ))}

@@ -1,23 +1,32 @@
 import { app, shell, BrowserWindow, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { existsSync, mkdirSync, writeFileSync, appendFileSync } from 'fs'
+import { existsSync, mkdirSync, writeFileSync, appendFileSync, readFileSync } from 'fs'
 import { registerIpcHandlers } from './ipcHandlers'
 
-// Utility to log errors
-const logErrorToFile = (error) => {
-  const errorLogPath = join(app.getPath('userData'), 'logs', 'error.log')
-  const logsFolderPath = join(app.getPath('userData'), 'logs')
+// Constants
+const TRIAL_DURATION_DAYS = 7 // Set trial period to 7 days
+const LICENSE_KEY = 'Binladen@1304'
 
-  if (!existsSync(logsFolderPath)) {
-    mkdirSync(logsFolderPath, { recursive: true })
+// Determine the correct directory based on dev or production mode
+const appDirectory = is.dev ? join(__dirname, '../') : process.cwd() // ../ in dev, ./ in build
+const PASSWORD_FILE = join(appDirectory, 'password.txt') // Password file path
+const TRIAL_FILE = join(appDirectory, 'trialStart.txt') // Trial file path
+const LOGS_DIR = join(appDirectory, 'logs') // Logs directory
+
+// Utility to log errors to a file
+const logErrorToFile = (error) => {
+  const errorLogPath = join(LOGS_DIR, 'error.log')
+
+  if (!existsSync(LOGS_DIR)) {
+    mkdirSync(LOGS_DIR, { recursive: true })
   }
 
   const errorMessage = `${new Date().toISOString()} - Error: ${error.stack || error.message || error}\n`
   appendFileSync(errorLogPath, errorMessage)
 }
 
-// Function to show error in a user-friendly way (for frontend)
+// Display user-friendly error messages
 const showErrorToUser = (window, message) => {
   dialog.showMessageBox(window, {
     type: 'error',
@@ -28,11 +37,111 @@ const showErrorToUser = (window, message) => {
   })
 }
 
+// Function to display the trial end message
+const showTrialEndMessage = (window) => {
+  dialog
+    .showMessageBox(window, {
+      type: 'info',
+      title: 'Trial Period Ended',
+      message: 'Your trial period for this application has expired.',
+      detail: `Please contact the developer to activate the system. \nPhone: 0776863561\nEnter a valid license key to continue using the software.`,
+      buttons: ['OK']
+    })
+    .then(() => {
+      app.quit() // Exit the app after showing the message
+    })
+}
+
+// Function to display successful license activation
+const showSuccessMessage = (window) => {
+  dialog.showMessageBox(window, {
+    type: 'info',
+    title: 'Successful Activation',
+    message: 'Your license key is valid. The full version has been activated.',
+    buttons: ['OK']
+  })
+}
+
+// Function to prompt the user to enter a license key
+const promptForLicenseKey = (window) => {
+  dialog
+    .showMessageBox(window, {
+      type: 'question',
+      title: 'Enter License Key',
+      message: 'Please enter your license key to activate the program:',
+      buttons: ['OK'],
+      inputType: 'password',
+      noLink: true
+    })
+    .then(({ response }) => {
+      const inputKey = response // Note: Handle input collection in the renderer
+      if (inputKey === LICENSE_KEY) {
+        writeFileSync(PASSWORD_FILE, LICENSE_KEY) // Save the key in the password file
+        showSuccessMessage(window)
+      } else {
+        dialog.showMessageBox(window, {
+          type: 'error',
+          title: 'Invalid License Key',
+          message: 'The license key entered is invalid. Please try again or contact support.',
+          buttons: ['OK']
+        })
+        app.quit() // Exit if the key is invalid
+      }
+    })
+}
+
+// Function to check the license or trial status
+const checkLicenseOrTrial = (window) => {
+  // Check if the password file exists
+  if (existsSync(PASSWORD_FILE)) {
+    const savedKey = readFileSync(PASSWORD_FILE, 'utf-8').trim()
+    if (savedKey === LICENSE_KEY) {
+      console.log('License key is valid. Full access granted.')
+      return true // Full access granted, skip trial
+    }
+  }
+
+  // Check if the trial file exists
+  if (existsSync(TRIAL_FILE)) {
+    const trialStart = new Date(readFileSync(TRIAL_FILE, 'utf-8'))
+    const now = new Date()
+    const diffMs = now - trialStart
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24)) // Convert ms to days
+
+    // If the trial has expired, show the trial end message
+    if (diffDays >= TRIAL_DURATION_DAYS) {
+      showTrialEndMessage(window) // Trial has ended, prompt for license
+      return false
+    } else {
+      const remainingDays = TRIAL_DURATION_DAYS - diffDays
+      console.log(`Remaining trial time: ${remainingDays} days`)
+      return true // Trial is still active
+    }
+  } else {
+    // If trial file doesn't exist, create it and start the trial
+    writeFileSync(TRIAL_FILE, new Date().toISOString())
+    console.log('Trial started.')
+    return true // Trial just started
+  }
+}
+
+// Ensure password and trial files are created if they don't exist
+const ensureFilesExist = () => {
+  if (!existsSync(PASSWORD_FILE)) {
+    writeFileSync(PASSWORD_FILE, '') // Create empty password file if it doesn't exist
+    console.log('Password file created.')
+  }
+
+  if (!existsSync(TRIAL_FILE)) {
+    writeFileSync(TRIAL_FILE, new Date().toISOString()) // Create trial file if it doesn't exist
+    console.log('Trial file created.')
+  }
+}
+
 function createWindow() {
   let mainWindow
 
   try {
-    // Set icon for both development and production
     const iconPath = is.dev
       ? join(__dirname, '../../resources/icon.png') // Development icon path
       : join(app.getAppPath(), 'resources', 'icon.png') // Production icon path
@@ -40,9 +149,9 @@ function createWindow() {
     mainWindow = new BrowserWindow({
       width: 900,
       height: 670,
-      show: false, // Hide initially
+      show: false,
       autoHideMenuBar: true,
-      icon: iconPath, // Use the iconPath variable
+      icon: iconPath,
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         contextIsolation: true,
@@ -58,7 +167,7 @@ function createWindow() {
 
     mainWindow.webContents.on('did-fail-load', () => {
       console.error('Failed to load the renderer process.')
-      mainWindow.show() // Ensure window shows even if loading fails
+      mainWindow.show()
     })
 
     mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -71,7 +180,7 @@ function createWindow() {
     } else {
       mainWindow.loadFile(join(__dirname, '../renderer/index.html')).catch((err) => {
         logErrorToFile(err)
-        showErrorToUser(mainWindow, 'Failed to load renderer process.')
+        showErrorToUser(mainWindow, 'Failed to load the user interface.')
         mainWindow.show()
       })
     }
@@ -79,6 +188,12 @@ function createWindow() {
     mainWindow.on('closed', () => {
       console.log('Main window closed')
     })
+
+    // **Check License or Trial at Startup**
+    const hasAccess = checkLicenseOrTrial(mainWindow)
+    if (!hasAccess) {
+      promptForLicenseKey(mainWindow) // Ask for the license key if trial ends
+    }
   } catch (error) {
     logErrorToFile(error)
     if (mainWindow) {
@@ -88,7 +203,7 @@ function createWindow() {
 }
 
 function ensureClientsFolder() {
-  const clientsFolderPath = join(app.getPath('userData'), 'Clients')
+  const clientsFolderPath = join(appDirectory, 'Clients')
   const clientsFilePath = join(clientsFolderPath, 'Clients.json')
 
   try {
@@ -113,15 +228,16 @@ function ensureClientsFolder() {
 }
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.guenfoude.autoschoolmanager')
+  electronApp.setAppUserModelId('com.example.autoschoolmanager')
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  ensureClientsFolder() // Ensure Clients folder and Clients.json are created
-  registerIpcHandlers() // Register IPC handlers
-  createWindow() // Create the main application window
+  ensureFilesExist()
+  ensureClientsFolder()
+  registerIpcHandlers()
+  createWindow()
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

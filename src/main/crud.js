@@ -9,8 +9,16 @@ import {
   readFileSync
 } from 'fs'
 import { shell, app } from 'electron'
+import { MongoClient } from 'mongodb' // MongoDB Client for database connection
+import { networkInterfaces } from 'os'
 
-// تحديد مسار المجلد الرئيسي للعملاء وملف Clients.json
+// Constants for MongoDB
+const MONGO_URI =
+  'mongodb+srv://admin:admin@dcs.2udsw.mongodb.net/?retryWrites=true&w=majority&appName=DCS' // MongoDB connection string
+const DATABASE_NAME = 'test' // Change to your database name
+const CLIENT_COLLECTION = 'clients'
+
+// Determine if running in development or production
 const baseDir = app.isPackaged
   ? join(process.resourcesPath, 'Clients')
   : join(__dirname, '../Clients')
@@ -18,7 +26,7 @@ const clientsFilePath = app.isPackaged
   ? join(process.resourcesPath, 'Clients.json')
   : join(__dirname, '../Clients.json')
 
-// التأكد من وجود المجلد وملف JSON الخاص بالعملاء، وإن لم يكن موجودًا، يتم إنشاؤهما
+// Ensure that the Clients folder and Clients.json file exist
 if (!existsSync(baseDir)) {
   mkdirSync(baseDir, { recursive: true })
 }
@@ -26,7 +34,88 @@ if (!existsSync(clientsFilePath)) {
   writeFileSync(clientsFilePath, JSON.stringify([]))
 }
 
-// دالة لقراءة بيانات العملاء من ملف Clients.json
+// MongoDB connection function
+let dbClient
+const connectToDatabase = async () => {
+  try {
+    if (!dbClient) {
+      const client = new MongoClient(MONGO_URI)
+      await client.connect()
+      dbClient = client.db(DATABASE_NAME)
+      console.log('Connected to MongoDB')
+    }
+    return dbClient
+  } catch (error) {
+    console.error('Error connecting to MongoDB:', error)
+    throw new Error('MongoDB connection failed')
+  }
+}
+
+// Function to check for internet connection
+const hasInternetConnection = () => {
+  const nets = networkInterfaces()
+  let hasInternet = false
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        hasInternet = true
+        break
+      }
+    }
+  }
+  return hasInternet
+}
+
+// Sync all clients from the local JSON file to MongoDB
+const syncClientsWithMongoDB = async () => {
+  try {
+    if (hasInternetConnection()) {
+      const clients = readClientsFile() // Read all clients from Clients.json
+      const db = await connectToDatabase() // Connect to MongoDB
+      const collection = db.collection(CLIENT_COLLECTION)
+
+      // Loop through each client and ensure all fields are set
+      for (const client of clients) {
+        // Set defaults for missing fields to ensure everything is synced
+        const clientWithDefaults = {
+          ...client,
+          depositSubmitted: client.depositSubmitted !== undefined ? client.depositSubmitted : false,
+          printed: client.printed !== undefined ? client.printed : false,
+          tests: {
+            trafficLawTest: {
+              passed: client.tests?.trafficLawTest?.passed || false,
+              attempts: client.tests?.trafficLawTest?.attempts || 0,
+              lastAttemptDate: client.tests?.trafficLawTest?.lastAttemptDate || null
+            },
+            manoeuvresTest: {
+              passed: client.tests?.manoeuvresTest?.passed || false,
+              attempts: client.tests?.manoeuvresTest?.attempts || 0,
+              lastAttemptDate: client.tests?.manoeuvresTest?.lastAttemptDate || null
+            },
+            drivingTest: {
+              passed: client.tests?.drivingTest?.passed || false,
+              attempts: client.tests?.drivingTest?.attempts || 0,
+              lastAttemptDate: client.tests?.drivingTest?.lastAttemptDate || null
+            }
+          }
+        }
+
+        await collection.replaceOne(
+          { national_id: client.national_id }, // Find client by national_id in MongoDB
+          clientWithDefaults, // Replace the full client object in MongoDB with all fields
+          { upsert: true } // Insert the document if it doesn't exist
+        )
+      }
+      console.log('All clients successfully synced with MongoDB.')
+    } else {
+      console.warn('No internet connection. Syncing skipped.')
+    }
+  } catch (error) {
+    console.error('Error syncing clients with MongoDB:', error)
+  }
+}
+
+// Function to read clients from the local file
 const readClientsFile = () => {
   try {
     const data = readFileSync(clientsFilePath)
@@ -36,7 +125,7 @@ const readClientsFile = () => {
   }
 }
 
-// دالة لكتابة بيانات العملاء إلى ملف Clients.json
+// Function to write clients to the local file
 const writeClientsFile = (data) => {
   try {
     writeFileSync(clientsFilePath, JSON.stringify(data, null, 2))
@@ -45,7 +134,7 @@ const writeClientsFile = (data) => {
   }
 }
 
-// إنشاء مسار مجلد العميل بناءً على اسمه ولقبه
+// Function to generate client folder path
 export const generateClientPath = (firstName, lastName) => {
   try {
     return join(baseDir, `${firstName}_${lastName}`)
@@ -54,34 +143,38 @@ export const generateClientPath = (firstName, lastName) => {
   }
 }
 
-// عمليات CRUD للعملاء (Create, Read, Update, Delete)
+// CRUD Operations
 
-// إنشاء عميل جديد
-export const createClient = (clientData) => {
+// Create a new client
+export const createClient = async (clientData) => {
   try {
     const clients = readClientsFile()
 
-    // التأكد من عدم وجود العميل بالفعل بناءً على رقم الهوية الوطنية
+    // Check if the client already exists by national ID
     if (clients.some((client) => client.national_id === clientData.national_id)) {
       throw new Error(`Client with national_id ${clientData.national_id} already exists.`)
     }
 
-    // إنشاء مجلد جديد للعميل إذا لم يكن موجودًا بالفعل
+    // Create client folder if not exists
     const folderPath = generateClientPath(clientData.first_name_ar, clientData.last_name_ar)
     if (!existsSync(folderPath)) {
       mkdirSync(folderPath, { recursive: true })
     }
 
-    // تعيين مسار المجلد للعميل وتحديث ملف JSON
+    // Add client data locally and set initial values
     clientData.path = folderPath
-    clientData.depositSubmitted = false // إضافة حالة الإيداع الافتراضية
-    clientData.tests = {
+    clientData.depositSubmitted = clientData.depositSubmitted || false
+    clientData.printed = clientData.printed || false
+    clientData.tests = clientData.tests || {
       lawTest: { passed: false, attempts: 0, lastAttemptDate: null },
       drivingTest: { passed: false, attempts: 0, lastAttemptDate: null }
     }
 
     clients.push(clientData)
-    writeClientsFile(clients)
+    writeClientsFile(clients) // Save the client locally
+
+    // Sync with MongoDB if online
+    await syncClientsWithMongoDB()
 
     return clientData
   } catch (error) {
@@ -89,17 +182,17 @@ export const createClient = (clientData) => {
   }
 }
 
-// قراءة جميع العملاء
+// Read all clients
 export const readClients = () => {
   try {
-    return readClientsFile()
+    return readClientsFile() // Return all clients from the local file
   } catch (error) {
     throw new Error(`Failed to read clients: ${error.message}`)
   }
 }
 
-// تحديث بيانات العميل
-export const updateClient = (nationalId, updatedData) => {
+// Update client data
+export const updateClient = async (nationalId, updatedData) => {
   try {
     const clients = readClientsFile()
     const index = clients.findIndex((client) => client.national_id === nationalId)
@@ -108,15 +201,20 @@ export const updateClient = (nationalId, updatedData) => {
       throw new Error(`Client with national_id ${nationalId} not found.`)
     }
 
+    // Update client information locally
     clients[index] = { ...clients[index], ...updatedData }
     writeClientsFile(clients)
+
+    // Sync updated client with MongoDB
+    await syncClientsWithMongoDB()
+
     return clients[index]
   } catch (error) {
     throw new Error(`Failed to update client: ${error.message}`)
   }
 }
 
-// حذف العميل بناءً على رقم الهوية الوطنية
+// Delete client locally (only local deletion, no deletion from MongoDB)
 export const deleteClient = (nationalId) => {
   try {
     let clients = readClientsFile()
@@ -125,11 +223,11 @@ export const deleteClient = (nationalId) => {
       throw new Error(`Client with national_id ${nationalId} not found.`)
     }
 
-    // إزالة العميل من قائمة العملاء
+    // Remove client locally
     clients = clients.filter((client) => client.national_id !== nationalId)
     writeClientsFile(clients)
 
-    // حذف مجلد العميل
+    // Remove local client folder
     const folderPath = client.path
     if (folderPath && existsSync(folderPath)) {
       rmdirSync(folderPath, { recursive: true })
@@ -141,9 +239,8 @@ export const deleteClient = (nationalId) => {
   }
 }
 
-// دوال إدارة المجلدات (إنشاء، قراءة، تحديث، حذف)
+// Folder Management Functions
 
-// إنشاء مجلد جديد
 export const createFolder = (folderName) => {
   try {
     const folderPath = join(baseDir, folderName)
@@ -159,7 +256,6 @@ export const createFolder = (folderName) => {
   }
 }
 
-// قراءة جميع المجلدات
 export const readFolders = () => {
   try {
     return readdirSync(baseDir, { withFileTypes: true })
@@ -170,7 +266,6 @@ export const readFolders = () => {
   }
 }
 
-// تحديث اسم مجلد
 export const updateFolder = (oldName, newName) => {
   try {
     const oldFolderPath = join(baseDir, oldName)
@@ -191,7 +286,6 @@ export const updateFolder = (oldName, newName) => {
   }
 }
 
-// حذف مجلد
 export const deleteFolder = (folderName) => {
   try {
     const folderPath = join(baseDir, folderName)
@@ -207,7 +301,7 @@ export const deleteFolder = (folderName) => {
   }
 }
 
-// فتح المجلد باستخدام متصفح الملفات
+// Open a folder in file explorer
 export const openFolder = (folderPath) => {
   try {
     if (!existsSync(folderPath)) {
@@ -219,3 +313,6 @@ export const openFolder = (folderPath) => {
     throw new Error(`Failed to open folder: ${error.message}`)
   }
 }
+
+// Initial sync of all clients on startup
+syncClientsWithMongoDB()

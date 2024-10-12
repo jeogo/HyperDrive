@@ -4,8 +4,7 @@ import {
   faUser,
   faCalendarCheck,
   faCheckCircle,
-  faTimesCircle,
-  faPrint
+  faTimesCircle
 } from '@fortawesome/free-solid-svg-icons'
 
 const ClientCard = ({ client, isSelected, onSelect, showCheckbox }) => {
@@ -32,14 +31,6 @@ const ClientCard = ({ client, isSelected, onSelect, showCheckbox }) => {
     return 'bg-gray-500'
   }
 
-  // Deposit status
-  const depositSubmitted = client.depositSubmitted || false
-  const depositStatusIcon = depositSubmitted ? faCheckCircle : faTimesCircle
-  const depositStatusColor = depositSubmitted ? 'text-green-500' : 'text-red-500'
-  const depositStatusText = depositSubmitted
-    ? 'مضاف إلى حافظة الإيداع'
-    : 'غير مضاف إلى حافظة الإيداع'
-
   // Printed status
   const printed = client.printed || false
   const printedStatusIcon = printed ? faCheckCircle : faTimesCircle
@@ -61,7 +52,7 @@ const ClientCard = ({ client, isSelected, onSelect, showCheckbox }) => {
       )}
 
       <div className="flex-grow">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="flex items-center">
             <FontAwesomeIcon icon={faUser} className="text-indigo-500 h-6 w-6 ml-2" />
             <span className="font-semibold text-lg text-gray-800">
@@ -90,14 +81,6 @@ const ClientCard = ({ client, isSelected, onSelect, showCheckbox }) => {
               {age}
             </div>
             <span className="text-lg text-gray-600">العمر</span>
-          </div>
-
-          <div className="flex items-center">
-            <FontAwesomeIcon
-              icon={depositStatusIcon}
-              className={`${depositStatusColor} h-6 w-6 ml-2`}
-            />
-            <span className="text-lg text-gray-600">{depositStatusText}</span>
           </div>
 
           <div className="flex items-center">
