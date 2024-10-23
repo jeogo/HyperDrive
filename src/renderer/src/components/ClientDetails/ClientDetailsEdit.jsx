@@ -1,3 +1,5 @@
+// ClientDetailsEdit.jsx
+
 import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -11,18 +13,21 @@ import {
   faFlag,
   faHome,
   faSave,
+  faTrash,
   faMoneyBill
 } from '@fortawesome/free-solid-svg-icons'
 
 const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
   const [formData, setFormData] = useState(client)
-  const [showNonAlgerianInfo, setShowNonAlgerianInfo] = useState(
-    !!client?.non_algerian_info?.country_of_birth
-  )
+  const [showNonAlgerianInfo, setShowNonAlgerianInfo] = useState(!!client?.country_of_birth)
 
   const handleChange = (e) => {
     const { name, value, type } = e.target
-    const newValue = type === 'number' ? parseInt(value, 10) : value
+    let newValue = value
+
+    if (type === 'number') {
+      newValue = value ? parseInt(value, 10) : 0
+    }
 
     setFormData({
       ...formData,
@@ -35,7 +40,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
   }
 
   const handleDelete = () => {
-    onDelete(formData.national_id)
+    onDelete(formData._id)
   }
 
   return (
@@ -46,6 +51,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
       <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-6 text-gray-700">المعلومات الشخصية</h2>
         <div className="flex flex-wrap gap-4">
+          {/* First Name */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faUser} className="text-green-500 text-2xl ml-3" />
@@ -59,21 +65,21 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
               />
             </div>
           </div>
-
+          {/* Last Name */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-              <FontAwesomeIcon icon={faUser} className="text-green-500 text-2xl ml-3" />
+              <FontAwesomeIcon icon={faUser} className="text-blue-500 text-2xl ml-3" />
               <input
                 type="text"
                 name="last_name_ar"
                 placeholder="اللقب بالعربية"
                 value={formData.last_name_ar}
                 onChange={handleChange}
-                className="w-full p-3 bg-transparent text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full p-3 bg-transparent text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
-
+          {/* Gender */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faVenusMars} className="text-purple-500 text-2xl ml-3" />
@@ -84,8 +90,8 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
                 className="w-full p-3 bg-transparent text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="">الجنس</option>
-                <option value="male">ذكر</option>
-                <option value="female">أنثى</option>
+                <option value="ذكر">ذكر</option>
+                <option value="أنثى">أنثى</option>
               </select>
             </div>
           </div>
@@ -96,6 +102,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
       <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-6 text-gray-700">المعلومات الأساسية</h2>
         <div className="flex flex-wrap gap-4">
+          {/* National ID */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faIdCard} className="text-blue-500 text-2xl ml-3" />
@@ -111,7 +118,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
               />
             </div>
           </div>
-
+          {/* Blood Type */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faTint} className="text-red-500 text-2xl ml-3" />
@@ -140,6 +147,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
       <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-6 text-gray-700">معلومات الميلاد</h2>
         <div className="flex flex-wrap gap-4">
+          {/* Birth Date */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faCalendarAlt} className="text-yellow-500 text-2xl ml-3" />
@@ -153,7 +161,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
               />
             </div>
           </div>
-
+          {/* Birth Place */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faMapMarkerAlt} className="text-pink-500 text-2xl ml-3" />
@@ -167,7 +175,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
               />
             </div>
           </div>
-
+          {/* Birth Municipality */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faMapMarkerAlt} className="text-pink-500 text-2xl ml-3" />
@@ -181,7 +189,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
               />
             </div>
           </div>
-
+          {/* Birth State */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faMapMarkerAlt} className="text-pink-500 text-2xl ml-3" />
@@ -202,6 +210,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
       <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-6 text-gray-700">تاريخ التسجيل</h2>
         <div className="flex flex-wrap gap-4">
+          {/* Register Date */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faCalendarAlt} className="text-yellow-500 text-2xl ml-3" />
@@ -222,6 +231,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
       <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-6 text-gray-700">معلومات الوالدين</h2>
         <div className="flex flex-wrap gap-4">
+          {/* Father's Name */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faUser} className="text-blue-500 text-2xl ml-3" />
@@ -235,7 +245,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
               />
             </div>
           </div>
-
+          {/* Mother's First Name */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faUser} className="text-green-500 text-2xl ml-3" />
@@ -249,7 +259,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
               />
             </div>
           </div>
-
+          {/* Mother's Last Name */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faUser} className="text-green-500 text-2xl ml-3" />
@@ -270,6 +280,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
       <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-6 text-gray-700">العنوان الحالي</h2>
         <div className="flex flex-wrap gap-4">
+          {/* Current Address */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faHome} className="text-green-500 text-2xl ml-3" />
@@ -283,7 +294,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
               />
             </div>
           </div>
-
+          {/* Current Municipality */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faMapMarkerAlt} className="text-green-500 text-2xl ml-3" />
@@ -297,7 +308,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
               />
             </div>
           </div>
-
+          {/* Current State */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faMapMarkerAlt} className="text-green-500 text-2xl ml-3" />
@@ -318,6 +329,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
       <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-6 text-gray-700">الحالة العائلية</h2>
         <div className="flex flex-wrap gap-4">
+          {/* Family Status */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faVenusMars} className="text-purple-500 text-2xl ml-3" />
@@ -328,14 +340,14 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
                 className="w-full p-3 bg-transparent text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <option value="">الحالة العائلية</option>
-                <option value="single">أعزب(ة)</option>
-                <option value="married">متزوج(ة)</option>
-                <option value="divorced">مطلق(ة)</option>
-                <option value="widowed">أرمل(ة)</option>
+                <option value="أعزب(ة)">أعزب(ة)</option>
+                <option value="متزوج(ة)">متزوج(ة)</option>
+                <option value="مطلق(ة)">مطلق(ة)</option>
+                <option value="أرمل(ة)">أرمل(ة)</option>
               </select>
             </div>
           </div>
-
+          {/* Phone Number */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faPhone} className="text-blue-500 text-2xl ml-3" />
@@ -356,8 +368,9 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
 
       {/* Nationality */}
       <div className="mb-8">
-        <h2 className="text-2xl font-semibold mb-6 text-gray-700">الجنسية الأصلية</h2>
+        <h2 className="text-2xl font-semibold mb-6 text-gray-700">الجنسية</h2>
         <div className="flex flex-wrap gap-4">
+          {/* Original Nationality */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faFlag} className="text-red-500 text-2xl ml-3" />
@@ -371,7 +384,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
               />
             </div>
           </div>
-
+          {/* Acquired Nationality */}
           <div className="flex-1">
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faFlag} className="text-red-500 text-2xl ml-3" />
@@ -391,19 +404,37 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
       {/* Payment Information */}
       <div className="mb-8">
         <h2 className="text-2xl font-semibold mb-6 text-gray-700">الدفع</h2>
-        <h3 className="text-2xl mb-6 text-gray-700">ثمن الملف حاليا 6000</h3>
         <div className="flex flex-wrap gap-4">
+          {/* Subscription Price */}
           <div className="flex-1">
+            <span className="block text-gray-700 mb-2">ثمن الملف</span>
             <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <FontAwesomeIcon icon={faMoneyBill} className="text-yellow-500 text-2xl ml-3" />
+              <input
+                type="number"
+                name="subPrice"
+                placeholder="ثمن الملف"
+                value={formData.subPrice}
+                onChange={handleChange}
+                className="w-full p-3 bg-transparent text-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                min="0"
+              />
+            </div>
+          </div>
+          {/* Amount Paid */}
+          <div className="flex-1">
+            <span className="block text-gray-700 mb-2">المبلغ المدفوع</span>
+            <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+              <FontAwesomeIcon icon={faMoneyBill} className="text-green-500 text-2xl ml-3" />
               <input
                 type="number"
                 name="paid"
                 placeholder="المبلغ المدفوع"
                 value={formData.paid}
                 onChange={handleChange}
-                className="w-full p-3 bg-transparent text-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                className="w-full p-3 bg-transparent text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
                 min="0"
+                max={formData.subPrice}
               />
             </div>
           </div>
@@ -428,6 +459,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
 
         {showNonAlgerianInfo && (
           <div className="flex flex-wrap gap-4">
+            {/* Country of Birth */}
             <div className="flex-1">
               <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <FontAwesomeIcon icon={faFlag} className="text-red-500 text-2xl ml-3" />
@@ -441,7 +473,7 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
                 />
               </div>
             </div>
-
+            {/* Embassy or Consulate */}
             <div className="flex-1">
               <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <FontAwesomeIcon icon={faFlag} className="text-red-500 text-2xl ml-3" />
@@ -468,6 +500,13 @@ const ClientDetailsEdit = ({ client, onClose, onSave, onDelete }) => {
           إلغاء
         </button>
         <div className="flex space-x-4">
+          <button
+            onClick={handleDelete}
+            className="bg-red-600 text-white py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-shadow focus:outline-none focus:ring-2 focus:ring-red-500"
+          >
+            <FontAwesomeIcon icon={faTrash} className="ml-2" />
+            حذف
+          </button>
           <button
             onClick={handleSave}
             className="bg-blue-600 text-white py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-500"

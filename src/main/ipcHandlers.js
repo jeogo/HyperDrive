@@ -1,3 +1,5 @@
+// ipcHandlers.js
+
 import { ipcMain, shell } from 'electron'
 import fs from 'fs'
 import {
@@ -18,7 +20,8 @@ export function registerIpcHandlers() {
   // Client CRUD operations
   ipcMain.handle('create-client', async (event, clientData) => {
     try {
-      return createClient(clientData)
+      const newClient = await createClient(clientData)
+      return newClient
     } catch (error) {
       console.error('Failed to create client:', error)
       throw new Error(`Failed to create client: ${error.message}`)
@@ -27,25 +30,28 @@ export function registerIpcHandlers() {
 
   ipcMain.handle('read-clients', async () => {
     try {
-      return readClients()
+      const clients = await readClients()
+      return clients
     } catch (error) {
       console.error('Failed to read clients:', error)
       throw new Error('Failed to read clients.')
     }
   })
 
-  ipcMain.handle('update-client', async (event, nationalId, updatedData) => {
+  ipcMain.handle('update-client', async (event, clientId, updatedData) => {
     try {
-      return updateClient(nationalId, updatedData)
+      const updatedClient = await updateClient(clientId, updatedData)
+      return updatedClient
     } catch (error) {
       console.error('Failed to update client:', error)
       throw new Error(`Failed to update client: ${error.message}`)
     }
   })
 
-  ipcMain.handle('delete-client', async (event, nationalId) => {
+  ipcMain.handle('delete-client', async (event, clientId) => {
     try {
-      return deleteClient(nationalId)
+      const result = await deleteClient(clientId)
+      return result
     } catch (error) {
       console.error('Failed to delete client:', error)
       throw new Error(`Failed to delete client: ${error.message}`)
@@ -53,7 +59,7 @@ export function registerIpcHandlers() {
   })
 
   // Folder CRUD operations
-  ipcMain.handle('create-folder', async (event, folderName) => {
+  ipcMain.handle('create-folder', (event, folderName) => {
     try {
       return createFolder(folderName)
     } catch (error) {
@@ -62,7 +68,7 @@ export function registerIpcHandlers() {
     }
   })
 
-  ipcMain.handle('read-folders', async () => {
+  ipcMain.handle('read-folders', () => {
     try {
       return readFolders()
     } catch (error) {
@@ -71,7 +77,7 @@ export function registerIpcHandlers() {
     }
   })
 
-  ipcMain.handle('update-folder', async (event, oldName, newName) => {
+  ipcMain.handle('update-folder', (event, oldName, newName) => {
     try {
       return updateFolder(oldName, newName)
     } catch (error) {
@@ -80,7 +86,7 @@ export function registerIpcHandlers() {
     }
   })
 
-  ipcMain.handle('delete-folder', async (event, folderName) => {
+  ipcMain.handle('delete-folder', (event, folderName) => {
     try {
       return deleteFolder(folderName)
     } catch (error) {
@@ -105,7 +111,7 @@ export function registerIpcHandlers() {
   })
 
   // Handler for generating client path
-  ipcMain.handle('generate-client-path', async (event, firstName, lastName) => {
+  ipcMain.handle('generate-client-path', (event, firstName, lastName) => {
     try {
       return generateClientPath(firstName, lastName)
     } catch (error) {

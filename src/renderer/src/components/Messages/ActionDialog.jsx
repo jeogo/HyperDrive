@@ -1,5 +1,7 @@
-import { XIcon } from '@heroicons/react/outline'
-import { useEffect } from 'react'
+// ActionDialog.jsx
+
+import { XIcon } from '@heroicons/react/outline';
+import { useEffect } from 'react';
 
 const ActionDialog = ({
   isOpen,
@@ -11,19 +13,19 @@ const ActionDialog = ({
   confirmText = 'موافق',
   cancelText = 'إلغاء',
   autoClose = true,
-  autoCloseDuration = 3000 // in milliseconds
+  autoCloseDuration = 3000, // in milliseconds
 }) => {
   useEffect(() => {
-    let timer
+    let timer;
     if (autoClose && type === 'message' && isOpen) {
       timer = setTimeout(() => {
-        onClose()
-      }, autoCloseDuration)
+        onClose();
+      }, autoCloseDuration);
     }
-    return () => clearTimeout(timer)
-  }, [autoClose, autoCloseDuration, isOpen, onClose, type])
+    return () => clearTimeout(timer);
+  }, [autoClose, autoCloseDuration, isOpen, onClose, type]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -62,7 +64,7 @@ const ActionDialog = ({
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ActionDialog
+export default ActionDialog;

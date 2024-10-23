@@ -23,7 +23,8 @@ const Clients = () => {
     type: 'message',
     message: '',
     onConfirm: null,
-    onCancel: null
+    onCancel: null,
+    onClose: null
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -94,11 +95,12 @@ const Clients = () => {
       message: 'هل أنت متأكد أنك تريد حفظ التغييرات؟',
       onConfirm: async () => {
         try {
-          await window.api.updateClient(updatedClient.national_id, updatedClient)
+          await window.api.updateClient(updatedClient._id, updatedClient)
           setClients((prevClients) =>
-            prevClients.map((client) =>
-              client.national_id === updatedClient.national_id ? updatedClient : client
-            )
+            prevClients.map((client) => (client._id === updatedClient._id ? updatedClient : client))
+          )
+          setFilteredClients((prevClients) =>
+            prevClients.map((client) => (client._id === updatedClient._id ? updatedClient : client))
           )
           setDialogProps({
             isOpen: true,
@@ -109,6 +111,33 @@ const Clients = () => {
           closePopup()
         } catch (error) {
           showError(`فشل في حفظ التغييرات: ${error.message}`)
+        }
+      },
+      onCancel: closeDialog
+    })
+  }
+
+  const handleDelete = async (clientId) => {
+    setDialogProps({
+      isOpen: true,
+      type: 'confirm',
+      message: 'هل أنت متأكد أنك تريد حذف هذا العميل؟',
+      onConfirm: async () => {
+        try {
+          await window.api.deleteClient(clientId)
+          setClients((prevClients) => prevClients.filter((client) => client._id !== clientId))
+          setFilteredClients((prevClients) =>
+            prevClients.filter((client) => client._id !== clientId)
+          )
+          setDialogProps({
+            isOpen: true,
+            type: 'message',
+            message: 'تم حذف العميل بنجاح',
+            onClose: closeDialog
+          })
+          closePopup()
+        } catch (error) {
+          showError(`فشل في حذف العميل: ${error.message}`)
         }
       },
       onCancel: closeDialog
@@ -128,7 +157,7 @@ const Clients = () => {
       'الاسم الكامل': `${client.first_name_ar} ${client.last_name_ar}`, // Full name
       'رقم البطاقة الوطنية': client.national_id, // National ID
       'فصيلة الدم': client.blood_type, // Blood type
-      النوع: client.gender === 'male' ? 'ذكر' : 'أنثى', // Gender (male/female)
+      النوع: client.gender === 'ذكر' ? 'ذكر' : 'أنثى', // Gender
       'تاريخ الميلاد': client.birth_date, // Birth date
       'مكان الميلاد': client.birth_place, // Birth place
       'بلدية الميلاد': client.birth_municipality, // Birth municipality
@@ -138,10 +167,10 @@ const Clients = () => {
       'العنوان الحالي': client.current_address, // Current address
       'بلدية الإقامة': client.current_municipality, // Current municipality
       'ولاية الإقامة': client.current_state, // Current state
-      'الحالة الاجتماعية': client.family_status === 'single' ? 'أعزب' : 'متزوج', // Family status
+      'الحالة الاجتماعية': client.family_status, // Family status
       'رقم الهاتف': client.phone_number, // Phone number
       'الجنسية الأصلية': client.original_nationality, // Original nationality
-      'الجنسية المكتسبة': client.acquired_nationality || 'غير متوفرة', // Acquired nationality (if any)
+      'الجنسية المكتسبة': client.acquired_nationality || 'غير متوفرة', // Acquired nationality
       'تاريخ التسجيل': new Date(client.register_date).toLocaleDateString(), // Registration date
       'المبلغ المستحق': client.subPrice, // Subscription price
       'المبلغ المدفوع': client.paid // Amount paid
@@ -189,8 +218,8 @@ const Clients = () => {
           ) : error ? (
             <div className="text-center text-lg text-red-600">{error}</div>
           ) : filteredClients.length > 0 ? (
-            filteredClients.map((client, index) => (
-              <div className="mb-24" key={index}>
+            filteredClients.map((client) => (
+              <div className="mb-24" key={client._id}>
                 <ClientCard
                   client={client}
                   onAction={(client, actionType) => {
@@ -199,6 +228,7 @@ const Clients = () => {
                         <ClientDetailsEdit
                           client={client}
                           onSave={handleSave}
+                          onDelete={handleDelete}
                           onClose={closePopup}
                         />
                       )

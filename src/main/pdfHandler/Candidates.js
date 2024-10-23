@@ -100,7 +100,7 @@ const generateCandidatesPDF = async (selectedClients) => {
       } else if (nextTest === 'اختبار المناورات') {
         examType = 'المناورة'
       } else if (nextTest === 'اختبار القيادة') {
-        examType = 'القيادة'
+        examType = 'السياقة'
       } else {
         examType = nextTest
       }

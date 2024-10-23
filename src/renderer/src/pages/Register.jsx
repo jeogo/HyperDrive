@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+// Register.jsx
+import { useState } from 'react'
 import {
   faIdCard,
   faTint,
@@ -11,63 +11,11 @@ import {
   faFlag,
   faHome,
   faSave,
-  faMoneyBill,
+  faMoneyBill
 } from '@fortawesome/free-solid-svg-icons'
 import Navbar from '../components/Navbar'
-import { ActionDialog } from '../components'
-
-// Reusable Input Component
-const InputField = ({
-  icon,
-  name,
-  value,
-  placeholder,
-  onChange,
-  type = 'text',
-  pattern,
-  min,
-  maxLength,
-  iconColor
-}) => (
-  <div className="flex-1">
-    <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-      <FontAwesomeIcon icon={icon} className={`${iconColor} text-2xl ml-3`} />
-      <input
-        type={type}
-        name={name}
-        placeholder={placeholder}
-        value={value}
-        onChange={onChange}
-        className="w-full p-3 bg-transparent text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-        pattern={pattern}
-        min={min}
-        maxLength={maxLength}
-      />
-    </div>
-  </div>
-)
-
-// Reusable Select Component
-const SelectField = ({ icon, name, value, placeholder, onChange, options, iconColor }) => (
-  <div className="flex-1">
-    <div className="flex items-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-      <FontAwesomeIcon icon={icon} className={`${iconColor} text-2xl ml-3`} />
-      <select
-        name={name}
-        value={value}
-        onChange={onChange}
-        className="w-full p-3 bg-transparent text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-      >
-        <option value="">{placeholder}</option>
-        {options.map((option, idx) => (
-          <option key={idx} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  </div>
-)
+import { ActionDialog, InputField, SelectField } from '../components'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 const Register = () => {
   const today = new Date()
@@ -78,7 +26,7 @@ const Register = () => {
     .toISOString()
     .split('T')[0] // No older than 120 years
 
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     national_id: '',
     blood_type: '',
     last_name_ar: '',
@@ -102,141 +50,80 @@ const Register = () => {
     embassy_or_consulate: '',
     register_date: new Date().toISOString().split('T')[0], // Default to today's date
     subPrice: 6000,
-    paid: 0,
-    depositSubmitted: false,
-    tests: {
-      // Updated tests
-      trafficLawTest: { passed: false, attempts: 0, lastAttemptDate: null }, // قانون المرور
-      manoeuvresTest: { passed: false, attempts: 0, lastAttemptDate: null }, // مناورات
-      drivingTest: { passed: false, attempts: 0, lastAttemptDate: null } // السياقة
-    }
-  })
+    paid: 0
+  }
 
+  const [formData, setFormData] = useState(initialFormData)
   const [showNonAlgerianInfo, setShowNonAlgerianInfo] = useState(false)
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
-
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogType, setDialogType] = useState('message')
   const [dialogMessage, setDialogMessage] = useState('')
 
   // Validation function for form inputs
-  const validateForm = useCallback(() => {
-    const { national_id, phone_number, paid, birth_date, subPrice } = formData;
+  const validateForm = () => {
+    const { phone_number, paid, subPrice } = formData
 
-    if (national_id.length !== 18) {
-      setError('رقم التعريف الوطني يجب أن يتكون من 18 رقم.');
-      setDialogMessage('رقم التعريف الوطني يجب أن يتكون من 18 رقم.');
-      setDialogType('error');
-      setDialogOpen(true);
-      return false;
-    }
-
-    if (!/^\d{10}$/.test(phone_number)) { // Regex for 10 digits phone number
-      setError('رقم الهاتف يجب أن يتكون من 10 أرقام.');
-      setDialogMessage('رقم الهاتف يجب أن يتكون من 10 أرقام.');
-      setDialogType('error');
-      setDialogOpen(true);
-      return false;
-    }
-
-    const currentDate = new Date();
-    const birthDate = new Date(birth_date);
-    const minDate = new Date(currentDate.getFullYear() - 18, currentDate.getMonth(), currentDate.getDate());
-
-    if (birthDate > currentDate || birthDate > minDate) {
-      setError('تاريخ الميلاد غير صالح. يجب أن يكون عمر المتدرب 18 عامًا على الأقل.');
-      setDialogMessage('تاريخ الميلاد غير صالح. يجب أن يكون عمر المتدرب 18 عامًا على الأقل.');
-      setDialogType('error');
-      setDialogOpen(true);
-      return false;
+    if (!/^\d{10}$/.test(phone_number)) {
+      // Regex for 10 digits phone number
+      setDialogMessage('رقم الهاتف يجب أن يتكون من 10 أرقام.')
+      setDialogType('error')
+      setDialogOpen(true)
+      return false
     }
 
     if (paid < 0 || paid > subPrice) {
-      setError('المبلغ المدفوع غير صحيح.');
-      setDialogMessage('المبلغ المدفوع غير صحيح.');
-      setDialogType('error');
-      setDialogOpen(true);
-      return false;
+      setDialogMessage('المبلغ المدفوع غير صحيح.')
+      setDialogType('error')
+      setDialogOpen(true)
+      return false
     }
 
-    return true;
-  }, [formData]); // Only recompute validation when formData changes
-
+    return true
+  }
 
   // Generic handleChange function for inputs
-  const handleChange = useCallback((e) => {
+  const handleChange = (e) => {
     const { name, value, type } = e.target
     let newValue = value
 
     if (type === 'number') {
-      newValue = parseInt(value, 10) || 0 // Default to 0 if parsing fails
+      newValue = value ? parseInt(value, 10) : 0
     }
 
     setFormData((prevFormData) => ({
       ...prevFormData,
       [name]: newValue
     }))
-  }, [])
+  }
 
   // Function to handle form submission
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = async () => {
     if (!validateForm()) {
-      return;
+      return
     }
 
     try {
-      const path = await window.api.generateClientPath(formData.first_name_ar, formData.last_name_ar);
-      const updatedFormData = { ...formData, path };
+      const path = await window.api.generateClientPath(
+        formData.first_name_ar,
+        formData.last_name_ar
+      )
+      const updatedFormData = { ...formData, path }
 
-      await window.api.createClient(updatedFormData);
-      setSuccess('تم حفظ البيانات بنجاح!');
-      setError(null);
-      setDialogMessage('تم حفظ البيانات بنجاح!');
-      setDialogType('message');
-      setDialogOpen(true);
+      // Create the client and receive the newly created client data with _id
+      const createdClient = await window.api.createClient(updatedFormData)
+      setDialogMessage('تم حفظ البيانات بنجاح!')
+      setDialogType('message')
+      setDialogOpen(true)
 
       // Reset form after successful submission
-      setFormData({
-        national_id: '',
-        blood_type: '',
-        last_name_ar: '',
-        first_name_ar: '',
-        gender: '',
-        birth_date: '',
-        birth_place: '',
-        birth_municipality: '',
-        birth_state: '',
-        father_name: '',
-        mother_first_name: '',
-        mother_last_name: '',
-        current_address: '',
-        current_municipality: '',
-        current_state: '',
-        family_status: '',
-        phone_number: '',
-        original_nationality: '',
-        acquired_nationality: '',
-        country_of_birth: '',
-        embassy_or_consulate: '',
-        register_date: new Date().toISOString().split('T')[0],
-        subPrice: 6000,
-        paid: 0,
-        depositSubmitted: false,
-        tests: {
-          trafficLawTest: { passed: false, attempts: 0, lastAttemptDate: null },
-          manoeuvresTest: { passed: false, attempts: 0, lastAttemptDate: null },
-          drivingTest: { passed: false, attempts: 0, lastAttemptDate: null },
-        },
-      });
+      setFormData(initialFormData)
     } catch (err) {
-      setError(`حدث خطأ: ${err.message}`);
-      setDialogMessage(`حدث خطأ: ${err.message}`);
-      setDialogType('error');
-      setDialogOpen(true);
+      // Display the error message from the backend
+      setDialogMessage(`حدث خطأ: ${err.message}`)
+      setDialogType('error')
+      setDialogOpen(true)
     }
-  }, [validateForm, formData]);
-
+  }
 
   const closeDialog = () => {
     setDialogOpen(false)
@@ -300,10 +187,8 @@ const Register = () => {
               icon={faIdCard}
               name="national_id"
               value={formData.national_id}
-              placeholder="رقم التعريف الوطني - 18 رقم"
+              placeholder="رقم التعريف الوطني"
               onChange={handleChange}
-              pattern="\d{18}"
-              maxLength="18"
               iconColor="text-blue-500"
             />
             <SelectField
@@ -339,7 +224,7 @@ const Register = () => {
               placeholder="تاريخ الميلاد"
               onChange={handleChange}
               min={minBirthDate}
-              max={maxBirthDate} // Ensure birth date is not in the future and at least 18 years ago
+              max={maxBirthDate}
               iconColor="text-yellow-500"
             />
             <InputField
@@ -462,6 +347,8 @@ const Register = () => {
             />
           </div>
         </div>
+
+        {/* Registration Date */}
         <div className="mb-8">
           <h2 className="text-2xl font-semibold mb-6 text-gray-700">تاريخ التسجيل</h2>
           <InputField
@@ -474,6 +361,7 @@ const Register = () => {
             iconColor="text-yellow-500"
           />
         </div>
+
         {/* Nationality Information */}
         <div className="mb-8">
           <h2 className="text-2xl font-semibold mb-6 text-gray-700">الجنسية</h2>
@@ -496,22 +384,38 @@ const Register = () => {
             />
           </div>
         </div>
+
         {/* Payment Information */}
         <div className="mb-8">
           <h2 className="text-2xl font-semibold mb-6 text-gray-700">الدفع</h2>
-          <h3 className="text-2xl mb-6 text-gray-700">ثمن الملف حاليا 6000</h3>
           <div className="flex flex-wrap gap-4">
-            <InputField
-              icon={faMoneyBill}
-              name="paid"
-              type="number"
-              value={formData.paid}
-              placeholder="المبلغ المدفوع"
-              onChange={handleChange}
-              min="0"
-              max={formData.subPrice}
-              iconColor="text-yellow-500"
-            />
+            <div className="flex-1">
+              <span className="block text-gray-700 mb-2">ثمن الملف</span>
+              <InputField
+                icon={faMoneyBill}
+                name="subPrice"
+                type="number"
+                value={formData.subPrice}
+                placeholder="ثمن الملف"
+                onChange={handleChange}
+                min="0"
+                iconColor="text-yellow-500"
+              />
+            </div>
+            <div className="flex-1">
+              <span className="block text-gray-700 mb-2">المبلغ المدفوع</span>
+              <InputField
+                icon={faMoneyBill}
+                name="paid"
+                type="number"
+                value={formData.paid}
+                placeholder="المبلغ المدفوع"
+                onChange={handleChange}
+                min="0"
+                max={formData.subPrice}
+                iconColor="text-green-500"
+              />
+            </div>
           </div>
         </div>
 

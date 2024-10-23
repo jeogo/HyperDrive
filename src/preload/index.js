@@ -1,3 +1,5 @@
+// preload.js
+
 import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('api', {
@@ -26,19 +28,19 @@ contextBridge.exposeInMainWorld('api', {
     }
   },
 
-  updateClient: async (nationalId, updatedData) => {
+  updateClient: async (clientId, updatedData) => {
     try {
-      return await ipcRenderer.invoke('update-client', nationalId, updatedData)
+      return await ipcRenderer.invoke('update-client', clientId, updatedData)
     } catch (error) {
-      console.error(`Failed to update client with national_id ${nationalId}:`, error)
+      console.error(`Failed to update client with ID ${clientId}:`, error)
     }
   },
 
-  deleteClient: async (nationalId) => {
+  deleteClient: async (clientId) => {
     try {
-      return await ipcRenderer.invoke('delete-client', nationalId)
+      return await ipcRenderer.invoke('delete-client', clientId)
     } catch (error) {
-      console.error(`Failed to delete client with national_id ${nationalId}:`, error)
+      console.error(`Failed to delete client with ID ${clientId}:`, error)
     }
   },
 

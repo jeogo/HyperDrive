@@ -4,7 +4,10 @@ import { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar'
 import ClientCard from '../components/Exams/ClientCard'
 import EditClientModal from '../components/Exams/EditClientModal'
-import ActionDialog from '../components/Messages/ActionDialog' // For user notifications
+import ActionDialog from '../components/Messages/ActionDialog'
+import Pagination from '../components/Pagination' // If needed
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCheckCircle, faTimesCircle } from '@fortawesome/free-solid-svg-icons'
 
 const Exams = () => {
   const [clients, setClients] = useState([])
@@ -15,8 +18,9 @@ const Exams = () => {
 
   // Filters and search state
   const [searchTerm, setSearchTerm] = useState('')
-  const [testFilter, setTestFilter] = useState('all') // 'all', 'trafficLaw', 'manoeuvres', 'driving', 'completed'
-  const [ageFilter, setAgeFilter] = useState('all') // 'all', 'under18', 'above18'
+  const [testFilter, setTestFilter] = useState('all')
+  const [ageFilter, setAgeFilter] = useState('all')
+  const [paymentFilter, setPaymentFilter] = useState('all') // Added payment filter
 
   // Counts of candidates for each test
   const [testCounts, setTestCounts] = useState({
@@ -24,14 +28,6 @@ const Exams = () => {
     trafficLawCandidates: 0,
     manoeuvresCandidates: 0,
     drivingCandidates: 0
-  })
-
-  // Counts for selected clients during selection mode
-  const [selectedCounts, setSelectedCounts] = useState({
-    totalCandidates: 0,
-    trafficLawCount: 0,
-    manoeuvresCount: 0,
-    drivingCount: 0
   })
 
   // Modal state
@@ -43,20 +39,21 @@ const Exams = () => {
     isOpen: false,
     message: '',
     type: 'message', // 'message' or 'confirm'
-    onConfirm: null
+    onConfirm: null,
+    onCancel: null
   })
 
   useEffect(() => {
     const fetchClients = async () => {
       try {
         let data = await window.api.readClients()
-        // Ensure each client has all test properties and payment properties
+        // Ensure each client has all necessary properties
         data = data.map((client) => ({
           ...client,
-          depositSubmitted: client.depositSubmitted || false,
-          archived: client.archived || false,
-          paid: client.paid || 0,
-          subPrice: client.subPrice || 0,
+          depositSubmitted: client.depositSubmitted ?? false,
+          archived: client.archived ?? false,
+          paid: client.paid ?? 0,
+          subPrice: client.subPrice ?? 0,
           tests: {
             trafficLawTest: client.tests?.trafficLawTest || {
               passed: false,
@@ -76,13 +73,12 @@ const Exams = () => {
           }
         }))
 
-        const filteredClients = data.filter(
-          (client) => client.depositSubmitted === true && !client.archived
-        )
-        setClients(filteredClients)
+        // Include all non-archived clients
+        const activeClients = data.filter((client) => !client.archived)
+        setClients(activeClients)
 
         // Calculate counts for each test
-        calculateTestCounts(filteredClients)
+        calculateTestCounts(activeClients)
       } catch (error) {
         console.error('Failed to fetch clients:', error)
         setDialog({
@@ -110,9 +106,9 @@ const Exams = () => {
       } else if (!client.tests.manoeuvresTest.passed) {
         manoeuvresCount++
       } else if (!client.tests.drivingTest.passed) {
-        // Check if the client is eligible for the driving test (age >= 18)
         const age = calculateAge(client.birth_date)
-        if (age >= 18) {
+        const isPaidInFull = client.paid >= client.subPrice
+        if (age >= 18 && isPaidInFull) {
           drivingCount++
         }
       }
@@ -126,40 +122,15 @@ const Exams = () => {
     })
   }
 
-  // Function to calculate counts based on selected clients
-  const calculateSelectedCounts = (selectedClients) => {
-    let totalCandidates = selectedClients.length
-    let trafficLawCount = 0
-    let manoeuvresCount = 0
-    let drivingCount = 0
-
-    selectedClients.forEach((client) => {
-      const nextTest = getNextTestForClient(client)
-      if (nextTest === 'اختبار قانون المرور') {
-        trafficLawCount++
-      } else if (nextTest === 'اختبار المناورات') {
-        manoeuvresCount++
-      } else if (nextTest === 'اختبار القيادة') {
-        drivingCount++
-      }
-    })
-
-    setSelectedCounts({
-      totalCandidates,
-      trafficLawCount,
-      manoeuvresCount,
-      drivingCount
-    })
-  }
-
   // Update filtered clients whenever filters or search term change
   useEffect(() => {
     let filtered = clients
 
     // Apply search term filter
     if (searchTerm) {
+      const search = searchTerm.toLowerCase()
       filtered = filtered.filter((client) =>
-        `${client.first_name_ar} ${client.last_name_ar}`.includes(searchTerm)
+        `${client.first_name_ar} ${client.last_name_ar}`.toLowerCase().includes(search)
       )
     }
 
@@ -172,11 +143,13 @@ const Exams = () => {
           return !client.tests.manoeuvresTest.passed && client.tests.trafficLawTest.passed
         } else if (testFilter === 'driving') {
           const age = calculateAge(client.birth_date)
+          const isPaidInFull = client.paid >= client.subPrice
           return (
             !client.tests.drivingTest.passed &&
             client.tests.trafficLawTest.passed &&
             client.tests.manoeuvresTest.passed &&
-            age >= 18
+            age >= 18 &&
+            isPaidInFull
           )
         } else if (testFilter === 'completed') {
           return (
@@ -202,8 +175,21 @@ const Exams = () => {
       })
     }
 
+    // Apply payment filter
+    if (paymentFilter !== 'all') {
+      filtered = filtered.filter((client) => {
+        const isPaidInFull = client.paid >= client.subPrice
+        if (paymentFilter === 'paid') {
+          return isPaidInFull
+        } else if (paymentFilter === 'notPaid') {
+          return !isPaidInFull
+        }
+        return true
+      })
+    }
+
     setFilteredClients(filtered)
-  }, [clients, searchTerm, testFilter, ageFilter])
+  }, [clients, searchTerm, testFilter, ageFilter, paymentFilter])
 
   // Function to calculate age
   const calculateAge = (birthDate) => {
@@ -233,9 +219,15 @@ const Exams = () => {
     setAgeFilter(e.target.value)
   }
 
+  // Handle payment filter change
+  const handlePaymentFilterChange = (e) => {
+    setPaymentFilter(e.target.value)
+  }
+
   // Handle selection of clients
   const handleSelectClient = (client) => {
     const age = calculateAge(client.birth_date)
+    const isPaidInFull = client.paid >= client.subPrice
 
     // Prevent selection if the client has passed all tests
     if (
@@ -251,11 +243,13 @@ const Exams = () => {
       return
     }
 
-    const isEligibleForDrivingTest =
-      client.tests.trafficLawTest.passed && client.tests.manoeuvresTest.passed
-
-    // Prevent selection if the client is under 18 and the next test is driving test
-    if (age < 18 && !client.tests.drivingTest.passed && isEligibleForDrivingTest) {
+    // Prevent selection if the client is under 18 for driving test
+    if (
+      age < 18 &&
+      !client.tests.drivingTest.passed &&
+      client.tests.trafficLawTest.passed &&
+      client.tests.manoeuvresTest.passed
+    ) {
       setDialog({
         isOpen: true,
         message: `لا يمكن تحديد المتدرب ${client.first_name_ar} ${client.last_name_ar} لأنه أقل من 18 عامًا ولا يمكنه اجتياز اختبار القيادة.`,
@@ -264,14 +258,16 @@ const Exams = () => {
       return
     }
 
-    // Limit selection to 15 clients
+    // Prevent selection for driving test if not paid in full
     if (
-      !selectedClients.find((c) => c.national_id === client.national_id) &&
-      selectedClients.length >= 15
+      !isPaidInFull &&
+      !client.tests.drivingTest.passed &&
+      client.tests.trafficLawTest.passed &&
+      client.tests.manoeuvresTest.passed
     ) {
       setDialog({
         isOpen: true,
-        message: 'يمكنك اختيار 15 متدرب كحد أقصى.',
+        message: `لا يمكن تحديد المتدرب ${client.first_name_ar} ${client.last_name_ar} لاختبار القيادة لأنه لم يقم بدفع المبلغ كاملاً.`,
         type: 'message'
       })
       return
@@ -279,16 +275,13 @@ const Exams = () => {
 
     setSelectedClients((prevSelected) => {
       let newSelected
-      if (prevSelected.find((c) => c.national_id === client.national_id)) {
+      if (prevSelected.some((c) => c._id === client._id)) {
         // Deselect the client
-        newSelected = prevSelected.filter((c) => c.national_id !== client.national_id)
+        newSelected = prevSelected.filter((c) => c._id !== client._id)
       } else {
         // Select the client
         newSelected = [...prevSelected, client]
       }
-
-      // Calculate counts based on new selection
-      calculateSelectedCounts(newSelected)
 
       return newSelected
     })
@@ -302,80 +295,65 @@ const Exams = () => {
 
   // Handle archiving a client
   const handleArchiveClient = async (client) => {
-    try {
-      const updatedClient = { ...client, archived: true }
-      await window.api.updateClient(updatedClient.national_id, updatedClient)
+    setDialog({
+      isOpen: true,
+      message: `هل أنت متأكد من أرشفة المتدرب ${client.first_name_ar} ${client.last_name_ar}؟`,
+      type: 'confirm',
+      onConfirm: async () => {
+        try {
+          const updatedClient = { ...client, archived: true }
+          await window.api.updateClient(updatedClient._id, updatedClient)
 
-      setClients((prevClients) => prevClients.filter((c) => c.national_id !== client.national_id))
+          setClients((prevClients) => prevClients.filter((c) => c._id !== client._id))
 
-      setDialog({
-        isOpen: true,
-        message: `تمت أرشفة المتدرب ${client.first_name_ar} ${client.last_name_ar}.`,
-        type: 'message'
-      })
-    } catch (error) {
-      console.error('Failed to archive client:', error)
-      setDialog({
-        isOpen: true,
-        message: 'فشل في أرشفة المتدرب.',
-        type: 'message'
-      })
-    }
+          setDialog({
+            isOpen: true,
+            message: `تمت أرشفة المتدرب ${client.first_name_ar} ${client.last_name_ar}.`,
+            type: 'message'
+          })
+        } catch (error) {
+          console.error('Failed to archive client:', error)
+          setDialog({
+            isOpen: true,
+            message: 'فشل في أرشفة المتدرب.',
+            type: 'message'
+          })
+        }
+      },
+      onCancel: () => setDialog({ ...dialog, isOpen: false })
+    })
   }
 
   // Handle saving updated client data
   const handleSaveClient = async (updatedClient) => {
     try {
-      const age = calculateAge(updatedClient.birth_date)
-      const tests = {
-        trafficLawTest: updatedClient.tests.trafficLawTest || {
-          passed: false,
-          attempts: 0,
-          lastAttemptDate: null
-        },
-        manoeuvresTest: updatedClient.tests.manoeuvresTest || {
-          passed: false,
-          attempts: 0,
-          lastAttemptDate: null
-        },
-        drivingTest: updatedClient.tests.drivingTest || {
-          passed: false,
-          attempts: 0,
-          lastAttemptDate: null
-        }
+      const updatedClientWithTests = {
+        ...updatedClient,
+        tests: updatedClient.tests
       }
 
-      if (
-        age < 18 &&
-        tests.trafficLawTest.passed &&
-        tests.manoeuvresTest.passed &&
-        tests.drivingTest.passed
-      ) {
+      // Prevent marking driving test as passed if not paid in full
+      if (updatedClient.tests.drivingTest.passed && updatedClient.paid < updatedClient.subPrice) {
         setDialog({
           isOpen: true,
-          message: 'لا يمكن للمتدرب تحت سن 18 اجتياز اختبار القيادة.',
+          message: `لا يمكن وضع علامة اجتياز لاختبار القيادة للمتدرب ${updatedClient.first_name_ar} ${updatedClient.last_name_ar} لأنه لم يدفع المبلغ كاملاً.`,
           type: 'message'
         })
         return
       }
 
-      const updatedClientWithTests = {
-        ...updatedClient,
-        tests
-      }
-
-      await window.api.updateClient(updatedClientWithTests.national_id, updatedClientWithTests)
+      await window.api.updateClient(updatedClientWithTests._id, updatedClientWithTests)
 
       setClients((prevClients) =>
         prevClients.map((client) =>
-          client.national_id === updatedClient.national_id ? updatedClientWithTests : client
+          client._id === updatedClient._id ? updatedClientWithTests : client
         )
       )
 
       // Recalculate counts after updating client
       calculateTestCounts(
         clients.map((client) =>
-          client.national_id === updatedClient.national_id ? updatedClientWithTests : client
+          client._id === updatedClient._id ? updatedClientWithTests : client
         )
       )
 
@@ -394,22 +372,20 @@ const Exams = () => {
   // Handle printing
   const handlePrint = () => {
     setSelectionMode(true)
-    // Calculate counts based on current selection
-    calculateSelectedCounts(selectedClients)
   }
 
   // Handle final print action
   const handleFinalPrint = async () => {
-    const clientsData = getSelectedClientsNextTests()
-
-    if (clientsData.length === 0) {
+    if (selectedClients.length === 0) {
       setDialog({
         isOpen: true,
-        message: 'لا يوجد متدربين مؤهلين للطباعة.',
+        message: 'يرجى تحديد متدرب واحد على الأقل للطباعة.',
         type: 'message'
       })
       return
     }
+
+    const clientsData = getSelectedClientsNextTests()
 
     try {
       // Generate the Candidates PDF with selected clients' data
@@ -443,12 +419,6 @@ const Exams = () => {
 
     setSelectionMode(false)
     setSelectedClients([])
-    setSelectedCounts({
-      totalCandidates: 0,
-      trafficLawCount: 0,
-      manoeuvresCount: 0,
-      drivingCount: 0
-    })
   }
 
   // Function to get data for selected clients
@@ -458,7 +428,7 @@ const Exams = () => {
 
       return {
         fullName: `${client.first_name_ar || ''} ${client.last_name_ar || ''}`,
-        register_number: client.register_number || '', // Updated to match your data structure
+        register_number: client.register_number || '',
         birthDate: client.birth_date || 'غير متوفر',
         nextTest: nextTest
       }
@@ -468,19 +438,55 @@ const Exams = () => {
   // Function to determine the next test for a client
   const getNextTestForClient = (client) => {
     const age = calculateAge(client.birth_date)
+    const isPaidInFull = client.paid >= client.subPrice
     if (!client.tests.trafficLawTest.passed) {
       return 'اختبار قانون المرور'
     } else if (!client.tests.manoeuvresTest.passed) {
       return 'اختبار المناورات'
     } else if (!client.tests.drivingTest.passed) {
       if (age >= 18) {
-        return 'اختبار القيادة'
+        if (isPaidInFull) {
+          return 'اختبار القيادة'
+        } else {
+          return 'غير مؤهل لاختبار القيادة (لم يتم دفع المبلغ كاملاً)'
+        }
       } else {
         return 'غير مؤهل لاختبار القيادة (العمر أقل من 18)'
       }
     } else {
       return 'اجتاز جميع الاختبارات'
     }
+  }
+
+  // Handle Select All
+  const handleSelectAll = () => {
+    const clientsToSelect = filteredClients.filter((client) => {
+      const age = calculateAge(client.birth_date)
+      const isPaidInFull = client.paid >= client.subPrice
+      return (
+        !selectedClients.some((selected) => selected._id === client._id) &&
+        !client.tests.drivingTest.passed &&
+        !(
+          age < 18 &&
+          !client.tests.drivingTest.passed &&
+          client.tests.trafficLawTest.passed &&
+          client.tests.manoeuvresTest.passed
+        ) &&
+        !(
+          !isPaidInFull &&
+          !client.tests.drivingTest.passed &&
+          client.tests.trafficLawTest.passed &&
+          client.tests.manoeuvresTest.passed
+        )
+      )
+    })
+
+    setSelectedClients(clientsToSelect)
+  }
+
+  // Handle Deselect All
+  const handleDeselectAll = () => {
+    setSelectedClients([])
   }
 
   return (
@@ -541,38 +547,47 @@ const Exams = () => {
 
         {/* Filters Section */}
         <div className="filters mb-4 w-full max-w-5xl">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={handleSearchChange}
-            placeholder="ابحث عن المتدربين..."
-            className="mb-2 p-2 border rounded-lg w-full"
-          />
-          <div className="flex justify-between">
-            <select
-              value={testFilter}
-              onChange={handleTestFilterChange}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={handleSearchChange}
+              placeholder="ابحث عن المتدربين..."
               className="p-2 border rounded-lg"
-            >
-              <option value="all">كل الاختبارات</option>
-              <option value="trafficLaw">لم يجتز قانون المرور</option>
-              <option value="manoeuvres">لم يجتز المناورات</option>
-              <option value="driving">لم يجتز القيادة</option>
-              <option value="completed">اجتاز جميع الاختبارات</option>
-            </select>
-            <select
-              value={ageFilter}
-              onChange={handleAgeFilterChange}
-              className="p-2 border rounded-lg"
-            >
-              <option value="all">كل الأعمار</option>
-              <option value="under18">أقل من 18 سنة</option>
-              <option value="above18">18 سنة أو أكثر</option>
-            </select>
+            />
+            <div className="flex space-x-4">
+              <select
+                value={testFilter}
+                onChange={handleTestFilterChange}
+                className="p-2 border rounded-lg"
+              >
+                <option value="all">كل الاختبارات</option>
+                <option value="trafficLaw">لم يجتز قانون المرور</option>
+                <option value="manoeuvres">لم يجتز المناورات</option>
+                <option value="driving">لم يجتز القيادة</option>
+                <option value="completed">اجتاز جميع الاختبارات</option>
+              </select>
+              <select
+                value={ageFilter}
+                onChange={handleAgeFilterChange}
+                className="p-2 border rounded-lg"
+              >
+                <option value="all">كل الأعمار</option>
+                <option value="under18">أقل من 18 سنة</option>
+                <option value="above18">18 سنة أو أكثر</option>
+              </select>
+              <select
+                value={paymentFilter}
+                onChange={handlePaymentFilterChange}
+                className="p-2 border rounded-lg"
+              >
+                <option value="all">كل الحالات</option>
+                <option value="paid">مدفوع بالكامل</option>
+                <option value="notPaid">لم يتم الدفع بالكامل</option>
+              </select>
+            </div>
           </div>
-        </div>
 
-        <div className="w-full max-w-5xl mb-4">
           {!selectionMode ? (
             <button
               onClick={handlePrint}
@@ -581,76 +596,39 @@ const Exams = () => {
               طباعة ملف المترشحين
             </button>
           ) : (
-            <div>
-              <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <button
+                  onClick={handleSelectAll}
+                  className="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-full transition duration-300 mr-2"
+                >
+                  تحديد الكل
+                </button>
+                <button
+                  onClick={handleDeselectAll}
+                  className="bg-gray-600 text-white hover:bg-gray-700 px-4 py-2 rounded-full transition duration-300"
+                >
+                  إلغاء التحديد
+                </button>
+              </div>
+              <div>
                 <button
                   onClick={() => {
                     setSelectionMode(false)
                     setSelectedClients([])
-                    setSelectedCounts({
-                      totalCandidates: 0,
-                      trafficLawCount: 0,
-                      manoeuvresCount: 0,
-                      drivingCount: 0
-                    })
                   }}
-                  className="bg-gray-500 text-white hover:bg-gray-600 px-4 py-2 rounded-full transition duration-300 text-lg font-semibold"
+                  className="bg-red-600 text-white hover:bg-red-700 px-4 py-2 rounded-full transition duration-300 mr-2"
                 >
                   إلغاء
                 </button>
                 {selectedClients.length > 0 && (
                   <button
                     onClick={handleFinalPrint}
-                    className="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-full transition duration-300 text-lg font-semibold"
+                    className="bg-orange-600 text-white hover:bg-orange-700 px-4 py-2 rounded-full transition duration-300"
                   >
-                    تأكيد الطباعة
+                    تأكيد الطباعة ({selectedClients.length})
                   </button>
                 )}
-              </div>
-
-              {/* Display Selected Counts */}
-              <div className="w-full max-w-5xl mb-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {/* Total Selected Candidates */}
-                  <div className="bg-white rounded-3xl shadow-lg p-4 text-center">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                      إجمالي عدد المترشحين
-                    </h3>
-                    <p className="text-2xl font-extrabold text-indigo-600">
-                      {selectedCounts.totalCandidates}
-                    </p>
-                  </div>
-
-                  {/* Traffic Law Candidates */}
-                  <div className="bg-white rounded-3xl shadow-lg p-4 text-center">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                      عدد المترشحين في اختبار قانون المرور
-                    </h3>
-                    <p className="text-2xl font-extrabold text-blue-600">
-                      {selectedCounts.trafficLawCount}
-                    </p>
-                  </div>
-
-                  {/* Manoeuvres Candidates */}
-                  <div className="bg-white rounded-3xl shadow-lg p-4 text-center">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                      عدد المترشحين في اختبار المناورات
-                    </h3>
-                    <p className="text-2xl font-extrabold text-green-600">
-                      {selectedCounts.manoeuvresCount}
-                    </p>
-                  </div>
-
-                  {/* Driving Candidates */}
-                  <div className="bg-white rounded-3xl shadow-lg p-4 text-center">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                      عدد المترشحين في اختبار القيادة
-                    </h3>
-                    <p className="text-2xl font-extrabold text-red-600">
-                      {selectedCounts.drivingCount}
-                    </p>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -667,12 +645,12 @@ const Exams = () => {
             <div className="flex flex-col gap-6">
               {filteredClients.map((client) => (
                 <ClientCard
-                  key={client.national_id}
+                  key={client._id}
                   client={client}
-                  isSelected={selectedClients.some((c) => c.national_id === client.national_id)}
+                  isSelected={selectedClients.some((c) => c._id === client._id)}
                   onSelect={handleSelectClient}
                   onEdit={handleEditClient}
-                  onArchiveClient={handleArchiveClient} // Pass the function here
+                  onArchiveClient={handleArchiveClient}
                   selectionMode={selectionMode}
                   calculateAge={calculateAge}
                 />
@@ -701,6 +679,7 @@ const Exams = () => {
         message={dialog.message}
         type={dialog.type}
         onConfirm={dialog.onConfirm}
+        onCancel={dialog.onCancel}
         onClose={() => setDialog({ ...dialog, isOpen: false })}
       />
     </div>
