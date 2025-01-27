@@ -1,5 +1,3 @@
-// crud.js
-
 import { join } from 'path'
 import { app, shell } from 'electron'
 import Datastore from 'nedb'
@@ -28,29 +26,35 @@ export const generateClientPath = (firstName, lastName) => {
   }
 }
 
-// CRUD Operations
+// CRUD Operations with full history tracking
 
-// Create a new client
+// Create a new client with historical tracking for payments, edits, submissions, and exams
 export const createClient = (clientData) => {
   return new Promise((resolve, reject) => {
     try {
-      // Create client folder if not exists
       const folderPath = generateClientPath(clientData.first_name_ar, clientData.last_name_ar)
       if (!existsSync(folderPath)) {
         mkdirSync(folderPath, { recursive: true })
       }
 
-      // Add client data and set initial values
+      // Initialize client data with historic fields
       clientData.path = folderPath
       clientData.depositSubmitted = clientData.depositSubmitted || false
       clientData.printed = clientData.printed || false
+
+      // History fields
+      clientData.paymentHistory = [] // Track all payments
+      clientData.editHistory = [] // Track all edits
+      clientData.examHistory = [] // Track all exam attempts
+      clientData.submissionHistory = [] // Track all deposit submissions
+      clientData.archiveHistory = [] // Track archival actions (archive/unarchive)
+
       clientData.tests = clientData.tests || {
         trafficLawTest: { passed: false, attempts: 0, lastAttemptDate: null },
         manoeuvresTest: { passed: false, attempts: 0, lastAttemptDate: null },
         drivingTest: { passed: false, attempts: 0, lastAttemptDate: null }
       }
 
-      // Insert the new client into the NeDB database
       db.insert(clientData, (err, newDoc) => {
         if (err) {
           reject(new Error(`Failed to create client: ${err.message}`))
@@ -77,44 +81,185 @@ export const readClients = () => {
   })
 }
 
-// Update client data
-export const updateClient = (clientId, updatedData) => {
+// Update client with historical tracking for edits
+export const updateClient = (clientId, updatedData, editedFields = []) => {
   return new Promise((resolve, reject) => {
-    db.update({ _id: clientId }, { $set: updatedData }, {}, (err, numReplaced) => {
-      if (err) {
-        reject(new Error(`Failed to update client: ${err.message}`))
-      } else if (numReplaced === 0) {
-        reject(new Error(`Client with ID ${clientId} not found.`))
-      } else {
-        // Return the updated client
-        db.findOne({ _id: clientId }, (err, doc) => {
-          if (err) {
-            reject(new Error(`Failed to retrieve updated client: ${err.message}`))
-          } else {
-            resolve(doc)
-          }
-        })
+    db.findOne({ _id: clientId }, (err, client) => {
+      if (err || !client) {
+        reject(new Error(`Failed to find client with ID ${clientId}.`))
+        return
       }
+
+      const currentDate = new Date().toISOString()
+
+      // Track edited fields with old and new values
+      if (editedFields.length > 0) {
+        const editRecord = {
+          date: currentDate,
+          changes: editedFields.map((field) => ({
+            field,
+            oldValue: client[field],
+            newValue: updatedData[field]
+          }))
+        }
+        updatedData.editHistory = [...client.editHistory, editRecord]
+      }
+
+      db.update({ _id: clientId }, { $set: updatedData }, {}, (err, numReplaced) => {
+        if (err) {
+          reject(new Error(`Failed to update client: ${err.message}`))
+        } else if (numReplaced === 0) {
+          reject(new Error(`Client with ID ${clientId} not found.`))
+        } else {
+          db.findOne({ _id: clientId }, (err, doc) => {
+            if (err) {
+              reject(new Error(`Failed to retrieve updated client: ${err.message}`))
+            } else {
+              resolve(doc)
+            }
+          })
+        }
+      })
     })
   })
 }
 
-// Delete client
+// Add payment to client's payment history
+export const addPayment = (clientId, amount) => {
+  return new Promise((resolve, reject) => {
+    db.findOne({ _id: clientId }, (err, client) => {
+      if (err || !client) {
+        reject(new Error(`Failed to find client with ID ${clientId}.`))
+        return
+      }
+
+      const paymentRecord = {
+        date: new Date().toISOString(),
+        amount
+      }
+
+      db.update(
+        { _id: clientId },
+        { $push: { paymentHistory: paymentRecord } },
+        {},
+        (err, numReplaced) => {
+          if (err) {
+            reject(new Error(`Failed to update payment history: ${err.message}`))
+          } else {
+            resolve(`Payment of ${amount} added for client ${clientId}`)
+          }
+        }
+      )
+    })
+  })
+}
+
+// Record an exam attempt for a client with historic tracking
+export const recordExamAttempt = (clientId, examType, passed) => {
+  return new Promise((resolve, reject) => {
+    db.findOne({ _id: clientId }, (err, client) => {
+      if (err || !client) {
+        reject(new Error(`Failed to find client with ID ${clientId}.`))
+        return
+      }
+
+      const examRecord = {
+        date: new Date().toISOString(),
+        examType,
+        passed
+      }
+
+      db.update(
+        { _id: clientId },
+        { $push: { examHistory: examRecord } },
+        {},
+        (err, numReplaced) => {
+          if (err) {
+            reject(new Error(`Failed to update exam history: ${err.message}`))
+          } else {
+            resolve(`Exam attempt recorded for client ${clientId}`)
+          }
+        }
+      )
+    })
+  })
+}
+
+// Record submission history for a client
+export const recordSubmission = (clientId, submissionDetails) => {
+  return new Promise((resolve, reject) => {
+    db.findOne({ _id: clientId }, (err, client) => {
+      if (err || !client) {
+        reject(new Error(`Failed to find client with ID ${clientId}.`))
+        return
+      }
+
+      const submissionRecord = {
+        date: new Date().toISOString(),
+        details: submissionDetails
+      }
+
+      db.update(
+        { _id: clientId },
+        { $push: { submissionHistory: submissionRecord } },
+        {},
+        (err, numReplaced) => {
+          if (err) {
+            reject(new Error(`Failed to update submission history: ${err.message}`))
+          } else {
+            resolve(`Submission recorded for client ${clientId}`)
+          }
+        }
+      )
+    })
+  })
+}
+
+// Archive a client and add it to archive history
+export const archiveClient = (clientId, action) => {
+  return new Promise((resolve, reject) => {
+    db.findOne({ _id: clientId }, (err, client) => {
+      if (err || !client) {
+        reject(new Error(`Failed to find client with ID ${clientId}.`))
+        return
+      }
+
+      const archiveRecord = {
+        date: new Date().toISOString(),
+        action: action === 'archive' ? 'Archived' : 'Unarchived'
+      }
+
+      const updatedClientData = { archived: action === 'archive' }
+
+      db.update(
+        { _id: clientId },
+        { $set: updatedClientData, $push: { archiveHistory: archiveRecord } },
+        {},
+        (err, numReplaced) => {
+          if (err) {
+            reject(new Error(`Failed to archive/unarchive client: ${err.message}`))
+          } else {
+            resolve(
+              `Client ${clientId} successfully ${action === 'archive' ? 'archived' : 'unarchived'}`
+            )
+          }
+        }
+      )
+    })
+  })
+}
+
+// Delete client with history check
 export const deleteClient = (clientId) => {
   return new Promise((resolve, reject) => {
-    // Find the client to get the folder path
     db.findOne({ _id: clientId }, (err, client) => {
-      if (err) {
+      if (err || !client) {
         reject(new Error(`Failed to find client: ${err.message}`))
-      } else if (!client) {
-        reject(new Error(`Client with ID ${clientId} not found.`))
       } else {
-        // Remove client from the database
         db.remove({ _id: clientId }, {}, (err) => {
           if (err) {
             reject(new Error(`Failed to delete client: ${err.message}`))
           } else {
-            // Remove local client folder
             const folderPath = client.path
             if (folderPath && existsSync(folderPath)) {
               rmdirSync(folderPath, { recursive: true })

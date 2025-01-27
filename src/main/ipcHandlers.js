@@ -1,5 +1,3 @@
-// ipcHandlers.js
-
 import { ipcMain, shell } from 'electron'
 import fs from 'fs'
 import {
@@ -11,7 +9,11 @@ import {
   readFolders,
   updateFolder,
   deleteFolder,
-  generateClientPath
+  generateClientPath,
+  addPayment, // New payment handling
+  recordExamAttempt, // New exam handling
+  recordSubmission, // New submission handling
+  archiveClient // New archival handling
 } from './crud'
 import { generatePDFByTemplateName } from './templateManager'
 
@@ -38,9 +40,9 @@ export function registerIpcHandlers() {
     }
   })
 
-  ipcMain.handle('update-client', async (event, clientId, updatedData) => {
+  ipcMain.handle('update-client', async (event, clientId, updatedData, editedFields = []) => {
     try {
-      const updatedClient = await updateClient(clientId, updatedData)
+      const updatedClient = await updateClient(clientId, updatedData, editedFields)
       return updatedClient
     } catch (error) {
       console.error('Failed to update client:', error)
@@ -117,6 +119,50 @@ export function registerIpcHandlers() {
     } catch (error) {
       console.error('Failed to generate client path:', error)
       throw new Error(`Failed to generate client path: ${error.message}`)
+    }
+  })
+
+  // Payment history handler
+  ipcMain.handle('add-payment', async (event, clientId, amount) => {
+    try {
+      const result = await addPayment(clientId, amount)
+      return result
+    } catch (error) {
+      console.error('Failed to add payment:', error)
+      throw new Error(`Failed to add payment: ${error.message}`)
+    }
+  })
+
+  // Record exam attempt handler
+  ipcMain.handle('record-exam-attempt', async (event, clientId, examType, passed) => {
+    try {
+      const result = await recordExamAttempt(clientId, examType, passed)
+      return result
+    } catch (error) {
+      console.error('Failed to record exam attempt:', error)
+      throw new Error(`Failed to record exam attempt: ${error.message}`)
+    }
+  })
+
+  // Record submission handler
+  ipcMain.handle('record-submission', async (event, clientId, submissionDetails) => {
+    try {
+      const result = await recordSubmission(clientId, submissionDetails)
+      return result
+    } catch (error) {
+      console.error('Failed to record submission:', error)
+      throw new Error(`Failed to record submission: ${error.message}`)
+    }
+  })
+
+  // Archive/unarchive client handler
+  ipcMain.handle('archive-client', async (event, clientId, action) => {
+    try {
+      const result = await archiveClient(clientId, action)
+      return result
+    } catch (error) {
+      console.error(`Failed to ${action} client:`, error)
+      throw new Error(`Failed to ${action} client: ${error.message}`)
     }
   })
 

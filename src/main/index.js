@@ -1,6 +1,4 @@
-// index.js
-
-import { app, shell, BrowserWindow, dialog } from 'electron'
+import { app, shell, BrowserWindow, dialog, screen } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { existsSync, mkdirSync, writeFileSync, appendFileSync } from 'fs'
@@ -39,39 +37,47 @@ function createWindow() {
   let mainWindow
 
   try {
+    // Set the icon path based on the environment
     const iconPath = is.dev
       ? join(__dirname, '../../resources/icon.png') // Development icon path
       : join(app.getAppPath(), 'resources', 'icon.png') // Production icon path
 
+    // Get the screen dimensions to create a full-screen window
+    const { width, height } = screen.getPrimaryDisplay().workAreaSize
+
     mainWindow = new BrowserWindow({
-      width: 900,
-      height: 670,
+      width, // Full width of the screen
+      height, // Full height of the screen
       show: false,
-      autoHideMenuBar: true,
+      autoHideMenuBar: true, // Hide menu bar for a clean UI
       icon: iconPath,
       webPreferences: {
-        preload: join(__dirname, '../preload/index.js'),
+        preload: join(__dirname, '../preload/index.js'), // Preload script
         contextIsolation: true,
         enableRemoteModule: false,
         sandbox: true,
-        nodeIntegration: false
+        nodeIntegration: false // Disable node integration for security
       }
     })
 
+    // Show window when ready to avoid white screen
     mainWindow.once('ready-to-show', () => {
       mainWindow.show()
     })
 
+    // Error handling for page loading failure
     mainWindow.webContents.on('did-fail-load', () => {
       console.error('Failed to load the renderer process.')
       mainWindow.show()
     })
 
+    // Prevent opening new browser windows from external URLs
     mainWindow.webContents.setWindowOpenHandler((details) => {
-      shell.openExternal(details.url)
-      return { action: 'deny' }
+      shell.openExternal(details.url) // Open URLs in the user's default browser
+      return { action: 'deny' } // Prevent in-app window opening
     })
 
+    // Load the appropriate URL based on development or production
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
       mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
     } else {
@@ -82,6 +88,7 @@ function createWindow() {
       })
     }
 
+    // Log when the window is closed
     mainWindow.on('closed', () => {
       console.log('Main window closed')
     })
@@ -93,6 +100,7 @@ function createWindow() {
   }
 }
 
+// Ensure the Clients folder and file are created if they don't exist
 function ensureClientsFolder() {
   const clientsFolderPath = join(appDirectory, 'Clients')
   const clientsFilePath = join(clientsFolderPath, 'Clients.json')
@@ -118,29 +126,34 @@ function ensureClientsFolder() {
   }
 }
 
+// Main application lifecycle management
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.example.autoschoolmanager')
 
+  // Watch for browser window events
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  // Ensure the necessary folders and files are created
   ensureClientsFolder()
-  registerIpcHandlers()
-  createWindow()
+  registerIpcHandlers() // Register IPC handlers for communication between front and back end
+  createWindow() // Create the main window
 
+  // Recreate the window if the app is re-activated and no windows are open
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
+// Quit the app when all windows are closed (except for macOS)
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
-// Catch all unhandled errors
+// Global error handling for uncaught exceptions
 process.on('uncaughtException', (error) => {
   logErrorToFile(error)
   console.error('Unhandled exception:', error)
@@ -151,6 +164,7 @@ process.on('uncaughtException', (error) => {
   }
 })
 
+// Global error handling for unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   logErrorToFile(reason)
   console.error('Unhandled promise rejection:', promise, 'reason:', reason)
