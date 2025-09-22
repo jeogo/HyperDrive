@@ -9,6 +9,7 @@ ARABIC_SYSTEM_STATUS.md
 BACKEND_TECH_REFERENCE.md
 DATE_FORMAT_VALIDATION_REPORT.md
 README.md
+all_files_list.txt
 comprehensive_debug.py
 debug_validation.js
 electron-builder.yml
