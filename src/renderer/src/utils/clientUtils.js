@@ -139,7 +139,7 @@ export const formatDateArabic = (dateStr) => {
     const date = new Date(dateStr)
     if (isNaN(date.getTime())) return 'تاريخ غير صحيح'
 
-    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`
+    return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
   } catch (error) {
     return 'تاريخ غير صحيح'
   }

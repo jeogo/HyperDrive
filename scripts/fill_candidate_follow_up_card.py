@@ -396,7 +396,7 @@ def load_client_data(args) -> Tuple[Dict[str, str], bool]:
                     client_data = {
                         'category': 'B',
                         'fullName': f"{loaded.get('first_name_ar', '')} {loaded.get('last_name_ar', '')}".strip(),
-                        'birthDate': loaded.get('birth_date', ''),
+                        'birthDate': convert_date_to_dd_mm_yyyy(loaded.get('birth_date', '')),
                         'birthPlace': f"{loaded.get('birth_municipality', '')} {loaded.get('birth_state', '')}".strip(),
                         'address': ' '.join(filter(None, [
                             loaded.get('current_address', ''),
@@ -404,7 +404,7 @@ def load_client_data(args) -> Tuple[Dict[str, str], bool]:
                             loaded.get('current_state', '')
                         ])),
                         'phoneNumber': loaded.get('phone_number', ''),
-                        'schoolSubmissionDate': loaded.get('register_date', ''),
+                        'schoolSubmissionDate': convert_date_to_dd_mm_yyyy(loaded.get('register_date', '')),
                         'vers': str(loaded.get('subPrice', '6000'))
                     }
                     data.update(client_data)
@@ -438,7 +438,7 @@ def load_client_data(args) -> Tuple[Dict[str, str], bool]:
                 client_data = {
                     'category': 'B',  # Changed to English B as requested
                     'fullName': f"{loaded.get('first_name_ar', '')} {loaded.get('last_name_ar', '')}".strip(),
-                    'birthDate': loaded.get('birth_date', ''),
+                    'birthDate': convert_date_to_dd_mm_yyyy(loaded.get('birth_date', '')),
                     'birthPlace': f"{loaded.get('birth_municipality', '')} {loaded.get('birth_state', '')}".strip(),
                     'address': ' '.join(filter(None, [
                         loaded.get('current_address', ''),
@@ -446,7 +446,7 @@ def load_client_data(args) -> Tuple[Dict[str, str], bool]:
                         loaded.get('current_state', '')
                     ])),
                     'phoneNumber': loaded.get('phone_number', ''),
-                    'schoolSubmissionDate': loaded.get('register_date', ''),
+                    'schoolSubmissionDate': convert_date_to_dd_mm_yyyy(loaded.get('register_date', '')),
                     'vers': str(loaded.get('subPrice', '6000'))  # New placeholder for subPrice
                 }
                 data.update(client_data)
@@ -463,11 +463,11 @@ def load_client_data(args) -> Tuple[Dict[str, str], bool]:
     defaults = {
         'category': 'B',  # Changed to English B
         'fullName': 'اسم المترشح',
-        'birthDate': '1990/01/01',
+        'birthDate': '01/01/1990',
         'birthPlace': 'المدينة',
         'address': 'العنوان',
         'phoneNumber': '0000000000',
-        'schoolSubmissionDate': datetime.now().strftime('%Y/%m/%d'),
+        'schoolSubmissionDate': datetime.now().strftime('%d/%m/%Y'),
         'vers': '6000'  # Default subPrice
     }
 
@@ -503,6 +503,25 @@ def generate_dates(start_date_str: str, count: int, out_format: str) -> List[str
                 dates.append(current.strftime('%d/%m/%Y'))
         current += timedelta(days=1)
     return dates
+
+def convert_date_to_dd_mm_yyyy(date_str: str) -> str:
+    """Convert any date format to DD/MM/YYYY for consistent display"""
+    if not date_str:
+        return ''
+
+    # Try multiple date formats to parse input
+    date_formats = ['%Y-%m-%d', '%Y/%m/%d', '%d/%m/%Y', '%m/%d/%Y']
+
+    for fmt in date_formats:
+        try:
+            parsed_date = datetime.strptime(date_str, fmt).date()
+            # Always return in DD/MM/YYYY format
+            return parsed_date.strftime('%d/%m/%Y')
+        except ValueError:
+            continue
+
+    # If no format worked, return original
+    return date_str
 
 def generate_hour_schedule(count: int, dates: List[str], client_id: str = None) -> List[str]:
     """Generate hour schedule within 07-17 window.

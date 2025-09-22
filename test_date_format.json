@@ -1,0 +1,11 @@
+{
+  "first_name_ar": "محمد",
+  "last_name_ar": "أحمد",
+  "birth_date": "1990/01/01",
+  "register_date": "2025/01/01",
+  "tests": {
+    "trafficLawTest": {
+      "passed": true
+    }
+  }
+}

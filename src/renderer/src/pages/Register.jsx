@@ -14,6 +14,7 @@ import {
   faMoneyBill
 } from '@fortawesome/free-solid-svg-icons'
 import { ActionDialog, InputField, SelectField } from '../components'
+import DateInputField from '../components/Register/DateInputField'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 const Register = () => {
@@ -101,12 +102,30 @@ const Register = () => {
       return
     }
 
+    // Ensure dates are ISO before sending (they are stored as ISO by DateInputField already)
+    const toISO = (val) => {
+      if (!val) return ''
+      if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val
+      const m = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+      if (m) {
+        const [, dd, mm, yyyy] = m
+        return `${yyyy}-${mm}-${dd}`
+      }
+      return val
+    }
+
+    const normalizedPayload = {
+      ...formData,
+      birth_date: toISO(formData.birth_date),
+      register_date: toISO(formData.register_date)
+    }
+
     try {
       const path = await window.api.generateClientPath(
-        formData.first_name_ar,
-        formData.last_name_ar
+        normalizedPayload.first_name_ar,
+        normalizedPayload.last_name_ar
       )
-      const updatedFormData = { ...formData, path }
+      const updatedFormData = { ...normalizedPayload, path }
 
       // Create the client and receive the newly created client data with _id
       const createdClient = await window.api.createClient(updatedFormData)
@@ -250,12 +269,11 @@ const Register = () => {
             معلومات الميلاد
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <InputField
+            <DateInputField
               icon={faCalendarAlt}
               name="birth_date"
-              type="date"
               value={formData.birth_date}
-              placeholder="اختر تاريخ الميلاد"
+              placeholder="DD/MM/YYYY"
               onChange={handleChange}
               min={minBirthDate}
               max={maxBirthDate}
@@ -411,12 +429,11 @@ const Register = () => {
               label="الحالة العائلية"
               required={true}
             />
-            <InputField
+            <DateInputField
               icon={faCalendarAlt}
               name="register_date"
-              type="date"
               value={formData.register_date}
-              placeholder="تاريخ التسجيل"
+              placeholder="DD/MM/YYYY"
               onChange={handleChange}
               iconColor="text-blue-500"
               label="تاريخ التسجيل"
