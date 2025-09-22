@@ -1,53 +1,34 @@
-import { PDFDocument, rgb, degrees } from 'pdf-lib';
-import fs from 'fs';
-import path from 'path';
-import fontkit from '@pdf-lib/fontkit';
-
-// Load the font from the system
-const loadFont = async () => {
-  const fontPath = path.join(__dirname, '../fonts/Amiri-Regular.ttf');
-  if (!fs.existsSync(fontPath)) {
-    throw new Error(`Font file not found at path: ${fontPath}`);
-  }
-  return fs.readFileSync(fontPath);
-};
-
-// Fix number reversal issue in strings
-const reverseNumbersInString = (str) => {
-  return str.replace(/\d+/g, (match) => match.split('').reverse().join(''));
-};
-
-// Function to draw Arabic text with RTL support
-function drawTextWithArabicSupport(page, text, x, y, font, size, color, rotate = 0) {
-  const textWidth = font.widthOfTextAtSize(text, size);
-  const adjustedX = x - textWidth; // Adjust the x-coordinate for RTL text
-  const textOptions = { x: adjustedX, y, size, font, color };
-  if (rotate) {
-    textOptions.rotate = degrees(rotate);
-  }
-  page.drawText(text, textOptions);
-}
+import { PDFDocument, rgb } from 'pdf-lib'
+import fs from 'fs'
+import path from 'path'
+import fontkit from '@pdf-lib/fontkit'
+import {
+  loadFont,
+  drawTextWithArabicSupport,
+  reverseNumbersInString,
+  ensureClientDirectory
+} from './utils/pdfUtils.js'
 
 // Main function to generate the form PDF
 const FormTemplate = async (clientData) => {
-  const templatePath = path.join(__dirname, '../templates/نموذج الاستمارة - سماعيل.pdf');
+  const templatePath = path.join(__dirname, '../templates/نموذج الاستمارة - سماعيل.pdf')
   if (!fs.existsSync(templatePath)) {
-    throw new Error(`Template file not found at path: ${templatePath}`);
+    throw new Error(`Template file not found at path: ${templatePath}`)
   }
 
-  const existingPdfBytes = fs.readFileSync(templatePath);
-  const pdfDoc = await PDFDocument.load(existingPdfBytes);
+  const existingPdfBytes = fs.readFileSync(templatePath)
+  const pdfDoc = await PDFDocument.load(existingPdfBytes)
 
-  pdfDoc.registerFontkit(fontkit);
+  pdfDoc.registerFontkit(fontkit)
 
-  const amiriFontBytes = await loadFont();
-  const amiriFont = await pdfDoc.embedFont(amiriFontBytes);
+  const amiriFontBytes = await loadFont('bold')
+  const amiriFont = await pdfDoc.embedFont(amiriFontBytes)
 
-  const pages = pdfDoc.getPages();
-  const page = pages[0];
+  const pages = pdfDoc.getPages()
+  const page = pages[0]
 
   // Automatically get the width and height of the page
-  const pageHeight = page.getHeight();
+  const pageHeight = page.getHeight()
 
   // Reverse numbers in relevant fields
   const client = {
@@ -63,8 +44,8 @@ const FormTemplate = async (clientData) => {
     birthState: clientData.birth_state || '',
     birthMunicipality: clientData.birth_municipality || '',
     bloodType: clientData.blood_type || '',
-    nationalId: (clientData.national_id || ''), // Reversed
-    phoneNumber: (clientData.phone_number || ''), // Reversed
+    nationalId: clientData.national_id || '', // Reversed
+    phoneNumber: clientData.phone_number || '', // Reversed
     currentAddress: reverseNumbersInString(clientData.current_address || ''), // Reversed
     currentState: clientData.current_state || '',
     currentMunicipality: clientData.current_municipality || '',
@@ -76,69 +57,248 @@ const FormTemplate = async (clientData) => {
     gender: clientData.gender || '',
     familyStatus: clientData.family_status || '',
     path: clientData.path || ''
-  };
+  }
 
   // Drawing text with adjusted coordinates for RTL
-  drawTextWithArabicSupport(page, client.lastNameAr, 550, pageHeight - 325, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.firstNameAr, 550, pageHeight - 345, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.fatherName, 545, pageHeight - 402, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.motherFullName, 260, pageHeight - 402, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.birthDate, 510, pageHeight - 383, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.birthPlace, 430, pageHeight - 383, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.birthState, 320, pageHeight - 383, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.birthMunicipality, 200, pageHeight - 383, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.bloodType, 128, pageHeight - 301, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.nationalId, 450, pageHeight - 301, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.phoneNumber, 400, pageHeight - 477, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.currentAddress, 520, pageHeight - 420, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.currentState, 320, pageHeight - 420, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.currentMunicipality, 200, pageHeight - 420, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(page, client.originalNationality, 520, pageHeight - 515, amiriFont, 13, rgb(0, 0, 0));
+  drawTextWithArabicSupport(
+    page,
+    client.lastNameAr,
+    550,
+    pageHeight - 325,
+    amiriFont,
+    14,
+    rgb(0, 0, 0),
+    0,
+    !amiriFontBytes || amiriFontBytes.length === 0 // simulateBold if fallback
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.firstNameAr,
+    550,
+    pageHeight - 345,
+    amiriFont,
+    14,
+    rgb(0, 0, 0),
+    0,
+    !amiriFontBytes || amiriFontBytes.length === 0
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.fatherName,
+    545,
+    pageHeight - 402,
+    amiriFont,
+    14,
+    rgb(0, 0, 0)
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.motherFullName,
+    260,
+    pageHeight - 402,
+    amiriFont,
+    14,
+    rgb(0, 0, 0)
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.birthDate,
+    510,
+    pageHeight - 383,
+    amiriFont,
+    14,
+    rgb(0, 0, 0)
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.birthPlace,
+    430,
+    pageHeight - 383,
+    amiriFont,
+    14,
+    rgb(0, 0, 0)
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.birthMunicipality,
+    320,
+    pageHeight - 383,
+    amiriFont,
+    14,
+    rgb(0, 0, 0)
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.birthState,
+    200,
+    pageHeight - 383,
+    amiriFont,
+    14,
+    rgb(0, 0, 0)
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.bloodType,
+    128,
+    pageHeight - 301,
+    amiriFont,
+    14,
+    rgb(0, 0, 0)
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.nationalId,
+    450,
+    pageHeight - 301,
+    amiriFont,
+    14,
+    rgb(0, 0, 0)
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.phoneNumber,
+    400,
+    pageHeight - 477,
+    amiriFont,
+    14,
+    rgb(0, 0, 0)
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.currentAddress,
+    520,
+    pageHeight - 420,
+    amiriFont,
+    14,
+    rgb(0, 0, 0)
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.currentMunicipality,
+    320,
+    pageHeight - 420,
+    amiriFont,
+    14,
+    rgb(0, 0, 0)
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.currentState,
+    200,
+    pageHeight - 420,
+    amiriFont,
+    13,
+    rgb(0, 0, 0)
+  )
+  drawTextWithArabicSupport(
+    page,
+    client.originalNationality,
+    520,
+    pageHeight - 515,
+    amiriFont,
+    13,
+    rgb(0, 0, 0)
+  )
 
   if (client.acquiredNationality) {
-    drawTextWithArabicSupport(page, client.acquiredNationality, 300, pageHeight - 515, amiriFont, 13, rgb(0, 0, 0));
-    drawTextWithArabicSupport(page, client.countryOfBirth, 410, pageHeight - 535, amiriFont, 13, rgb(0, 0, 0));
-    drawTextWithArabicSupport(page, client.embassyOrConsulate, 210, pageHeight - 535, amiriFont, 13, rgb(0, 0, 0));
+    drawTextWithArabicSupport(
+      page,
+      client.acquiredNationality,
+      300,
+      pageHeight - 515,
+      amiriFont,
+      13,
+      rgb(0, 0, 0)
+    )
+    drawTextWithArabicSupport(
+      page,
+      client.countryOfBirth,
+      410,
+      pageHeight - 535,
+      amiriFont,
+      13,
+      rgb(0, 0, 0)
+    )
+    drawTextWithArabicSupport(
+      page,
+      client.embassyOrConsulate,
+      210,
+      pageHeight - 535,
+      amiriFont,
+      13,
+      rgb(0, 0, 0)
+    )
   }
 
   // Mark the appropriate marital status
-  const maritalStatusX = 512;
-  const maritalStatusY = 500;
+  const maritalStatusX = 512
+  const maritalStatusY = 500
   switch (client.familyStatus) {
     case 'single':
-      drawTextWithArabicSupport(page, 'X', maritalStatusX - 15, maritalStatusY - 100, amiriFont, 18, rgb(0, 0, 0));
-      break;
+      drawTextWithArabicSupport(
+        page,
+        'X',
+        maritalStatusX - 15,
+        maritalStatusY - 100,
+        amiriFont,
+        19,
+        rgb(0, 0, 0)
+      )
+      break
     case 'married':
-      drawTextWithArabicSupport(page, 'X', maritalStatusX - 100, maritalStatusY - 100, amiriFont, 18, rgb(0, 0, 0));
-      break;
+      drawTextWithArabicSupport(
+        page,
+        'X',
+        maritalStatusX - 100,
+        maritalStatusY - 100,
+        amiriFont,
+        19,
+        rgb(0, 0, 0)
+      )
+      break
     case 'divorced':
-      drawTextWithArabicSupport(page, 'X', maritalStatusX - 187, maritalStatusY - 100, amiriFont, 18, rgb(0, 0, 0));
-      break;
+      drawTextWithArabicSupport(
+        page,
+        'X',
+        maritalStatusX - 187,
+        maritalStatusY - 100,
+        amiriFont,
+        19,
+        rgb(0, 0, 0)
+      )
+      break
     case 'widowed':
-      drawTextWithArabicSupport(page, 'X', maritalStatusX - 270, maritalStatusY - 100, amiriFont, 18, rgb(0, 0, 0));
-      break;
+      drawTextWithArabicSupport(
+        page,
+        'X',
+        maritalStatusX - 270,
+        maritalStatusY - 100,
+        amiriFont,
+        19,
+        rgb(0, 0, 0)
+      )
+      break
     default:
-      break;
+      break
   }
 
   // Mark the appropriate gender
-  if (client.gender === 'male') {
-    drawTextWithArabicSupport(page, 'X', 500, pageHeight - 365, amiriFont, 18, rgb(0, 0, 0));
-  } else if (client.gender === 'female') {
-    drawTextWithArabicSupport(page, 'X', 440, pageHeight - 365, amiriFont, 18, rgb(0, 0, 0));
+  if (client.gender === 'male'|| client.gender === 'ذكر') {
+    drawTextWithArabicSupport(page, 'X', 500, pageHeight - 365, amiriFont, 19, rgb(0, 0, 0))
+  } else if (client.gender === 'female'|| client.gender === 'أنثى') {
+    drawTextWithArabicSupport(page, 'X', 440, pageHeight - 365, amiriFont, 19, rgb(0, 0, 0))
   }
 
-  if (!fs.existsSync(client.path)) {
-    fs.mkdirSync(client.path, { recursive: true });
-  }
+  // Ensure client directory exists with safe Unicode handling
+  const safePath = ensureClientDirectory(clientData)
 
-  const fileName = `A3 نموذج الاستمارة.pdf`;
-  const outputPath = path.join(client.path, fileName);
+  const fileName = `نموذج_الاستمارة.pdf`
+  const outputPath = path.join(safePath, fileName)
 
-  const pdfBytes = await pdfDoc.save();
-  fs.writeFileSync(outputPath, pdfBytes);
+  const pdfBytes = await pdfDoc.save()
+  fs.writeFileSync(outputPath, pdfBytes)
 
-  return outputPath;
-};
+  return outputPath
+}
 
-export default FormTemplate;
+export default FormTemplate

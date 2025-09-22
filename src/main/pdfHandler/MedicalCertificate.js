@@ -1,81 +1,104 @@
-import { PDFDocument, rgb } from 'pdf-lib';
-import fs from 'fs';
-import path from 'path';
-import fontkit from '@pdf-lib/fontkit';
+import { PDFDocument, rgb } from 'pdf-lib'
+import fs from 'fs'
+import path from 'path'
+import fontkit from '@pdf-lib/fontkit'
+import { formatDateForArabic, drawDateLTR } from './utils/dateUtils.js'
+import { loadFont, drawTextWithArabicSupport, ensureClientDirectory } from './utils/pdfUtils.js'
 
-const loadFont = async () => {
-  const fontPath = path.join(__dirname, '../fonts/Amiri-Regular.ttf');
-  if (!fs.existsSync(fontPath)) {
-    throw new Error(`Font file not found at path: ${fontPath}`);
-  }
-  return fs.readFileSync(fontPath);
-};
-
-// Function to handle RTL (Right-to-Left) text alignment
-function drawRightToLeftText(page, text, x, y, font, size, color) {
-  const textWidth = font.widthOfTextAtSize(text, size);
-  const adjustedX = x - textWidth; // Adjust the x-coordinate for RTL text
-  page.drawText(text, { x: adjustedX, y, size, font, color });
-}
-
-// Function to reverse numbers in a string (for RTL usage)
-const reverseNumbersInString = (str) => {
-  return str.replace(/\d+/g, (match) => match.split('').reverse().join(''));
-};
-
-// Function to reverse a date string (YYYY-MM-DD to DD-MM-YYYY)
-const reverseDate = (dateString) => {
-  const [year, month, day] = dateString.split('-');
-  return `${day}-${month}-${year}`;
-};
+// drawTextWithArabicSupport already handles RTL by width adjustment
 
 const MedicalCertificate = async (clientData) => {
-  const templatePath = path.join(__dirname, '../templates/شهادة طبية.pdf');
+  const templatePath = path.join(__dirname, '../templates/شهادة طبية.pdf')
   if (!fs.existsSync(templatePath)) {
-    throw new Error(`Template file not found at path: ${templatePath}`);
+    throw new Error(`Template file not found at path: ${templatePath}`)
   }
 
-  const existingPdfBytes = fs.readFileSync(templatePath);
-  const pdfDoc = await PDFDocument.load(existingPdfBytes);
+  const existingPdfBytes = fs.readFileSync(templatePath)
+  const pdfDoc = await PDFDocument.load(existingPdfBytes)
 
-  pdfDoc.registerFontkit(fontkit);
+  pdfDoc.registerFontkit(fontkit)
 
-  const amiriFontBytes = await loadFont();
-  const amiriFont = await pdfDoc.embedFont(amiriFontBytes);
+  const amiriFontBytes = await loadFont('bold')
+  const amiriFont = await pdfDoc.embedFont(amiriFontBytes)
 
-  const pages = pdfDoc.getPages();
-  const page = pages[0];
+  const pages = pdfDoc.getPages()
+  const page = pages[0]
 
-  const pageHeight = page.getHeight();
+  const pageHeight = page.getHeight()
 
-  // Ensure birth_date exists and reverse it
-  const formattedBirthDate = clientData.birth_date ? reverseDate(clientData.birth_date) : '';
+  const formattedBirthDate = clientData.birth_date ? formatDateForArabic(clientData.birth_date) : ''
 
   // Define the variables for client data
-  const firstName = clientData.first_name_ar || '';
-  const lastName = clientData.last_name_ar || '';
-  const birthDetails = reverseNumbersInString(`${clientData.birth_place || ''} - ${formattedBirthDate}`);
-  const address = reverseNumbersInString(clientData.current_address || '');
-  const phone = clientData?.phone_number || '';
+  const firstName = clientData.first_name_ar || ''
+  const lastName = clientData.last_name_ar || ''
+  const address = `${clientData.current_municipality || ''} ${clientData.current_state || ''} - ${clientData.current_address || ''}`
+  // Fixed: Remove reverseNumbersInString for phone number to display normally
+  const phone = clientData?.phone_number || ''
 
   // Now control both x and y positions with RTL text support using variables
-  drawRightToLeftText(page, firstName, 530, pageHeight - 168, amiriFont, 14, rgb(0, 0, 0)); // First name
-  drawRightToLeftText(page, lastName, 530, pageHeight - 150, amiriFont, 14, rgb(0, 0, 0)); // Last name
-  drawRightToLeftText(page, birthDetails, 490, pageHeight - 185, amiriFont, 14, rgb(0, 0, 0)); // Birth place and date
-  drawRightToLeftText(page, address, 530, pageHeight - 210, amiriFont, 14, rgb(0, 0, 0)); // Address
-  drawRightToLeftText(page, phone, 480, pageHeight - 230, amiriFont, 14, rgb(0, 0, 0)); // Phone
+  drawTextWithArabicSupport(
+    page,
+    firstName,
+    530,
+    pageHeight - 168,
+    amiriFont,
+    15,
+    rgb(0, 0, 0),
+    0,
+    !amiriFontBytes
+  )
+  drawTextWithArabicSupport(
+    page,
+    lastName,
+    530,
+    pageHeight - 150,
+    amiriFont,
+    15,
+    rgb(0, 0, 0),
+    0,
+    !amiriFontBytes
+  )
+  // Birth details: place(s) - date. Draw place as RTL then date LTR per-character.
+  const birthPlaceSegment = `${clientData.birth_municipality || ''} ${clientData.birth_state || ''} -`
+  drawTextWithArabicSupport(
+    page,
+    birthPlaceSegment,
+    490,
+    pageHeight - 185,
+    amiriFont,
+    15,
+    rgb(0, 0, 0),
+    0,
+    !amiriFontBytes
+  )
+  const placeWidth = amiriFont.widthOfTextAtSize(birthPlaceSegment, 15)
+  const dateRightX = 490 - placeWidth - 8 // small gap
+  drawDateLTR(page, formattedBirthDate, dateRightX, pageHeight - 185, amiriFont, 15, rgb(0, 0, 0))
+  drawTextWithArabicSupport(
+    page,
+    address,
+    530,
+    pageHeight - 210,
+    amiriFont,
+    15,
+    rgb(0, 0, 0),
+    0,
+    !amiriFontBytes
+  )
 
-  if (!fs.existsSync(clientData.path)) {
-    fs.mkdirSync(clientData.path, { recursive: true });
-  }
+  // Fixed: Use drawDateLTR for phone number to ensure left-to-right display
+  drawDateLTR(page, phone, 480, pageHeight - 230, amiriFont, 15, rgb(0, 0, 0))
 
-  const fileName = `شهادة طبية.pdf`;
-  const outputPath = path.join(clientData.path, fileName);
+  // Ensure client directory exists with safe Unicode handling
+  const clientPath = ensureClientDirectory(clientData)
 
-  const pdfBytes = await pdfDoc.save();
-  fs.writeFileSync(outputPath, pdfBytes);
+  const fileName = `شهادة طبية.pdf`
+  const outputPath = path.join(clientPath, fileName)
 
-  return outputPath;
-};
+  const pdfBytes = await pdfDoc.save()
+  fs.writeFileSync(outputPath, pdfBytes)
 
-export default MedicalCertificate;
+  return outputPath
+}
+
+export default MedicalCertificate

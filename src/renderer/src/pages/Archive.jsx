@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import Navbar from '../components/Navbar'
-import ArchiveClientCard from '../components/Archive/ArchiveClientCard' // Special card component for archived clients
+import ArchiveClientCard from '../components/Archive/ArchiveClientCard'
 import ActionDialog from '../components/Messages/ActionDialog'
 import * as XLSX from 'xlsx'
+import { calculateAge } from '../utils/clientUtils'
 
 const Archive = () => {
   const [archivedClients, setArchivedClients] = useState([])
@@ -16,28 +16,28 @@ const Archive = () => {
   })
   const [yearFilter, setYearFilter] = useState('')
   const [monthFilter, setMonthFilter] = useState('')
-  const [searchTerm, setSearchTerm] = useState('') // Add search functionality
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     const fetchArchivedClients = async () => {
       try {
-        let data = await window.api.readClients()
-        // Ensure data consistency
+        const api = window.electronAPI || window.api
+        let data = await (api.getClients ? api.getClients() : api.readClients())
         data = data.map((client) => ({
           ...client,
           archived: client.archived || false,
-          register_date: client.register_date || null // Ensure register_date exists
+          isArchived: client.isArchived || false,
+          registerDate: client.registerDate || client.register_date || null
         }))
 
-        // Filter archived clients
-        const archived = data.filter((client) => client.archived)
+        const archived = data.filter((client) => client.archived || client.isArchived)
         setArchivedClients(archived)
         setFilteredClients(archived)
       } catch (error) {
         console.error('Failed to fetch archived clients:', error)
         setDialog({
           isOpen: true,
-          message: 'فشل في جلب بيانات الأرشيف.',
+          message: 'فشل في جلب بيانات الأرشيف',
           type: 'message'
         })
       } finally {
@@ -48,7 +48,6 @@ const Archive = () => {
     fetchArchivedClients()
   }, [])
 
-  // Apply filters and search whenever they change
   useEffect(() => {
     applyFilters()
   }, [yearFilter, monthFilter, searchTerm, archivedClients])
@@ -56,200 +55,99 @@ const Archive = () => {
   const applyFilters = () => {
     let filtered = archivedClients
 
-    // Filter by year
     if (yearFilter) {
       filtered = filtered.filter((client) => {
-        const clientYear = client.register_date
-          ? new Date(client.register_date).getFullYear()
-          : null
+        const clientYear = client.registerDate ? new Date(client.registerDate).getFullYear() : null
         return clientYear === parseInt(yearFilter)
       })
     }
 
-    // Filter by month
     if (monthFilter) {
       filtered = filtered.filter((client) => {
-        const clientMonth = client.register_date
-          ? new Date(client.register_date).getMonth() + 1
+        const clientMonth = client.registerDate
+          ? new Date(client.registerDate).getMonth() + 1
           : null
         return clientMonth === parseInt(monthFilter)
       })
     }
 
-    // Filter by search term (name)
     if (searchTerm) {
-      filtered = filtered.filter((client) =>
-        `${client.first_name_ar} ${client.last_name_ar}`.includes(searchTerm)
+      filtered = filtered.filter(
+        (client) =>
+          `${client.firstName} ${client.lastName}`
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) || client.phoneNumber?.includes(searchTerm)
       )
     }
 
     setFilteredClients(filtered)
   }
 
-  // Calculate age
-  const calculateAge = (birthDate) => {
-    if (!birthDate) return null
-    const birth = new Date(birthDate)
-    const today = new Date()
-    let age = today.getFullYear() - birth.getFullYear()
-    const monthDifference = today.getMonth() - birth.getMonth()
-    if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birth.getDate())) {
-      age -= 1
-    }
-    return age
-  }
-
-  // Unarchive client
   const handleUnarchiveClient = async (client) => {
     try {
-      const updatedClient = { ...client, archived: false }
-      await window.api.updateClient(client._id, updatedClient) // Use _id instead of national_id
+      const updatedClient = {
+        ...client,
+        archived: false,
+        isArchived: false
+      }
+      await (window.electronAPI || window.api).updateClient(client.id, updatedClient)
 
-      setArchivedClients(
-        (prevClients) => prevClients.filter((c) => c._id !== client._id) // Use _id for filtering
-      )
+      setArchivedClients((prevClients) => prevClients.filter((c) => c.id !== client.id))
 
       setDialog({
         isOpen: true,
-        message: `تم إلغاء أرشفة المتدرب ${client.first_name_ar} ${client.last_name_ar}.`,
+        message: `تم إلغاء أرشفة المتدرب ${client.firstName} ${client.lastName}`,
         type: 'message'
       })
     } catch (error) {
       console.error('Failed to unarchive client:', error)
       setDialog({
         isOpen: true,
-        message: 'فشل في إلغاء أرشفة المتدرب.',
+        message: 'فشل في إلغاء أرشفة المتدرب',
         type: 'message'
       })
     }
   }
 
-  // Export to Excel
   const exportToExcel = () => {
     if (filteredClients.length === 0) {
       setDialog({
         isOpen: true,
-        message: 'لا توجد بيانات للتصدير.',
+        message: 'لا توجد بيانات للتصدير',
         type: 'message'
       })
       return
     }
 
     const excelData = filteredClients.map((client) => ({
-      'الاسم الكامل': `${client.first_name_ar} ${client.last_name_ar}`,
-      'رقم الهاتف': client.phone_number,
-      'تاريخ الميلاد': client.birth_date,
-      العمر: calculateAge(client.birth_date),
-      'رقم التسجيل': client.register_number || 'غير متوفر',
-      'تاريخ التسجيل': client.register_date || 'غير متوفر'
+      'الاسم الكامل': `${client.firstName} ${client.lastName}`,
+      'رقم الهاتف': client.phoneNumber,
+      'تاريخ الميلاد': client.birthDate,
+      العمر: calculateAge(client.birthDate),
+      'رقم التسجيل': client.registerNumber || 'غير متوفر',
+      'تاريخ التسجيل': client.registerDate || 'غير متوفر'
     }))
 
     const worksheet = XLSX.utils.json_to_sheet(excelData)
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'الأرشيف')
     XLSX.writeFile(workbook, 'الأرشيف.xlsx')
+
+    setDialog({
+      isOpen: true,
+      message: 'تم تصدير البيانات بنجاح',
+      type: 'message'
+    })
   }
 
-  return (
-    <div dir="rtl" className="w-screen h-screen flex flex-col overflow-auto bg-gray-100">
-      <Navbar />
-      <main className="flex-grow w-full flex flex-col items-center p-4 sm:p-8 overflow-auto">
-        <div className="text-center mb-8 w-full">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-800">الأرشيف</h1>
-          <p className="text-md sm:text-lg text-gray-600 mt-4">
-            هنا يمكنك عرض المتدربين المؤرشفين.
-          </p>
-        </div>
+  const getUniqueYears = (clients) => {
+    const years = clients
+      .map((client) => (client.registerDate ? new Date(client.registerDate).getFullYear() : null))
+      .filter((year) => year !== null)
+    return Array.from(new Set(years)).sort((a, b) => b - a)
+  }
 
-        {/* Filter Section */}
-        <div className="w-full max-w-5xl mb-4 flex flex-col sm:flex-row gap-4">
-          <select
-            value={yearFilter}
-            onChange={(e) => setYearFilter(e.target.value)}
-            className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">اختر السنة</option>
-            {getUniqueYears(archivedClients).map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={monthFilter}
-            onChange={(e) => setMonthFilter(e.target.value)}
-            className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">اختر الشهر</option>
-            {getMonthOptions().map((month) => (
-              <option key={month.value} value={month.value}>
-                {month.label}
-              </option>
-            ))}
-          </select>
-
-          {/* Search Input */}
-          <input
-            type="text"
-            placeholder="ابحث عن المتدرب بالاسم"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg flex-1"
-          />
-
-          {/* Export to Excel Button */}
-          <button
-            onClick={exportToExcel}
-            className="bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-full transition duration-300 flex items-center"
-          >
-            تصدير إلى Excel
-          </button>
-        </div>
-
-        <div className="bg-white rounded-3xl shadow-lg w-full max-w-5xl p-4 sm:p-8">
-          {loading ? (
-            <p className="text-lg sm:text-xl text-gray-700 text-center">جاري تحميل البيانات...</p>
-          ) : filteredClients.length === 0 ? (
-            <p className="text-lg sm:text-xl text-gray-700 text-center">
-              لا يوجد متدربين في الأرشيف.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-6">
-              {filteredClients.map((client) => (
-                <ArchiveClientCard
-                  key={client.national_id}
-                  client={client}
-                  onUnarchiveClient={handleUnarchiveClient}
-                  calculateAge={calculateAge}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </main>
-      <ActionDialog
-        isOpen={dialog.isOpen}
-        message={dialog.message}
-        type={dialog.type}
-        onConfirm={dialog.onConfirm}
-        onClose={() => setDialog({ ...dialog, isOpen: false })}
-      />
-    </div>
-  )
-}
-
-// Helper function to get unique years from the clients' register dates
-const getUniqueYears = (clients) => {
-  const years = clients
-    .map((client) => (client.register_date ? new Date(client.register_date).getFullYear() : null))
-    .filter((year) => year !== null)
-  return Array.from(new Set(years))
-}
-
-// Helper function to get month options
-const getMonthOptions = () => {
-  return [
+  const getMonthOptions = () => [
     { value: '1', label: 'يناير' },
     { value: '2', label: 'فبراير' },
     { value: '3', label: 'مارس' },
@@ -263,6 +161,113 @@ const getMonthOptions = () => {
     { value: '11', label: 'نوفمبر' },
     { value: '12', label: 'ديسمبر' }
   ]
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 min-h-full w-full">
+      {/* Standard Page Header */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">🗃️ أرشيف العملاء</h1>
+            <p className="text-gray-600">إدارة ومراجعة العملاء المؤرشفين</p>
+          </div>
+          <div className="flex items-center space-x-3 space-x-reverse">
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <span className="text-gray-600 text-xl">📂</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Section */}
+      <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <select
+            value={yearFilter}
+            onChange={(e) => setYearFilter(e.target.value)}
+            className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">جميع السنوات</option>
+            {getUniqueYears(archivedClients).map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">جميع الشهور</option>
+            {getMonthOptions().map((month) => (
+              <option key={month.value} value={month.value}>
+                {month.label}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="text"
+            placeholder="ابحث بالاسم أو رقم الهاتف..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+
+          <button
+            onClick={exportToExcel}
+            disabled={filteredClients.length === 0}
+            className="bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed px-4 py-2 rounded-lg transition duration-300 flex items-center justify-center"
+          >
+            تصدير إلى Excel
+          </button>
+        </div>
+      </div>
+
+      {/* Archive Content */}
+      <div className="bg-white rounded-xl shadow-sm">
+        {filteredClients.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">
+              {archivedClients.length === 0
+                ? 'لا يوجد متدربين في الأرشيف'
+                : 'لا توجد نتائج مطابقة للبحث'}
+            </p>
+          </div>
+        ) : (
+          <div className="p-6">
+            <div className="grid grid-cols-1 gap-4">
+              {filteredClients.map((client) => (
+                <ArchiveClientCard
+                  key={client.id}
+                  client={client}
+                  onUnarchiveClient={handleUnarchiveClient}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <ActionDialog
+        isOpen={dialog.isOpen}
+        message={dialog.message}
+        type={dialog.type}
+        onConfirm={dialog.onConfirm}
+        onClose={() => setDialog({ ...dialog, isOpen: false })}
+      />
+    </div>
+  )
 }
 
 export default Archive

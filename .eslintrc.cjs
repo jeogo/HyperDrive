@@ -5,5 +5,8 @@ module.exports = {
     'plugin:react/jsx-runtime',
     '@electron-toolkit',
     '@electron-toolkit/eslint-config-prettier'
-  ]
+  ],
+  rules: {
+    'react/prop-types': 'off' // Disable PropTypes validation for now
+  }
 }

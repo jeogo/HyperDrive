@@ -1,0 +1,18 @@
+{
+  "first_name_ar": "محمد",
+  "last_name_ar": "أحمد", 
+  "birth_date": "1990/01/01",
+  "birth_municipality": "الجزائر",
+  "birth_state": "الجزائر",
+  "current_address": "شارع محمد",
+  "current_municipality": "الجزائر",
+  "current_state": "الجزائر",
+  "phone_number": "0123456789",
+  "register_date": "2025/01/01",
+  "subPrice": 6000,
+  "tests": {
+    "trafficLawTest": {
+      "passed": true
+    }
+  }
+}

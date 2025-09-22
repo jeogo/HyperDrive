@@ -1,41 +1,46 @@
-// SubmissionAndNomination.jsx
-
 import { useState, useEffect } from 'react'
-import Navbar from '../components/Navbar'
-import ClientCard from '../components/SubmissionAndNomination/ClientCard'
+import {
+  UserGroupIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  DocumentTextIcon
+} from '@heroicons/react/outline'
 import ActionDialog from '../components/Messages/ActionDialog'
-import Pagination from '../components/SubmissionAndNomination/Pagination' // A pagination component
-import { FixedSizeList as List } from 'react-window' // For virtualization
+import { LoadingSpinner } from '../components/Loading'
+import { useDebounceSearch } from '../hooks/useFastSearch'
 
 const SubmissionAndNomination = () => {
   const [clients, setClients] = useState([])
+  const [filteredClients, setFilteredClients] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selectedClients, setSelectedClients] = useState([])
-  const [viewMode, setViewMode] = useState('default') // 'default' or 'printDeposit'
-  const [filter, setFilter] = useState('all') // 'all', 'printed', 'notPrinted'
-  const [searchTerm, setSearchTerm] = useState('') // For search input
-  const [dialog, setDialog] = useState({ isOpen: false, message: '', type: 'message' })
-  const [currentPage, setCurrentPage] = useState(1)
-  const [clientsPerPage] = useState(50) // Adjust the number as needed
-  const [monthFilter, setMonthFilter] = useState('') // For month filtering
-  const [yearFilter, setYearFilter] = useState('') // For year filtering
+  const [submitting, setSubmitting] = useState(false)
+  const [dialog, setDialog] = useState({
+    isOpen: false,
+    message: '',
+    type: 'message'
+  })
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [selectedClients, setSelectedClients] = useState(new Set())
+  const [selectAll, setSelectAll] = useState(false)
+
+  // Use fast debounced search hook
+  const { searchResults, isSearching, search, searchQuery } = useDebounceSearch(300)
+
+  // Helper function to get client field value (handles both old and new schema)
+  const getClientField = (client, newField, oldField) => {
+    return client[newField] || client[oldField] || ''
+  }
 
   useEffect(() => {
     const fetchClients = async () => {
       try {
         const data = await window.api.readClients()
-
-        // Filter out archived clients
-        const activeClients = data.filter((client) => !client.archived)
-
-        setClients(activeClients)
+        console.log('Fetched clients data:', data) // Debug log
+        setClients(data)
+        setFilteredClients(data)
       } catch (error) {
-        console.error('Failed to fetch clients:', error)
-        setDialog({
-          isOpen: true,
-          message: 'خطأ في جلب بيانات المتدربين',
-          type: 'message'
-        })
+        console.error('Error fetching clients:', error)
+        showDialog('فشل في تحميل بيانات المتدربين', 'error')
       } finally {
         setLoading(false)
       }
@@ -44,310 +49,479 @@ const SubmissionAndNomination = () => {
     fetchClients()
   }, [])
 
-  // Handle client selection with a limit of 15 clients for printing
-  const handleSelectClient = (client) => {
-    setSelectedClients((prevSelected) => {
-      if (prevSelected.some((c) => c._id === client._id)) {
-        // Deselect client
-        return prevSelected.filter((c) => c._id !== client._id)
-      } else {
-        // Select client with limit check
-        if (prevSelected.length >= 15) {
-          setDialog({
-            isOpen: true,
-            message: 'يمكنك اختيار 15 متدرب كحد أقصى.',
-            type: 'message'
-          })
-          return prevSelected
+  useEffect(() => {
+    let filtered = clients
+
+    // Use search results if searching, otherwise show all clients
+    if (searchQuery.trim()) {
+      filtered = searchResults
+    }
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((client) => {
+        switch (statusFilter) {
+          case 'submitted':
+            return client.submissionDate || client.depositSubmitted
+          case 'pending':
+            return !client.submissionDate && !client.depositSubmitted
+          default:
+            return true
         }
-        return [...prevSelected, client]
-      }
-    })
+      })
+    }
+
+    setFilteredClients(filtered)
+  }, [clients, searchResults, searchQuery, statusFilter])
+
+  // Update selectAll state when filtered clients change
+  useEffect(() => {
+    if (filteredClients.length === 0) {
+      setSelectAll(false)
+    } else {
+      const allSelected = filteredClients.every((client) =>
+        selectedClients.has(client.id || client._id)
+      )
+      setSelectAll(allSelected)
+    }
+  }, [filteredClients, selectedClients])
+
+  const showDialog = (message, type = 'message') => {
+    setDialog({ isOpen: true, message, type })
   }
 
-  // Select all clients on the current page
+  const closeDialog = () => {
+    setDialog({ isOpen: false, message: '', type: 'message' })
+  }
+
+  // Selection functionality
   const handleSelectAll = () => {
-    const clientsToSelect = currentClients.filter(
-      (client) => !selectedClients.some((c) => c._id === client._id)
-    )
+    if (selectAll) {
+      setSelectedClients(new Set())
+      setSelectAll(false)
+    } else {
+      const allClientIds = filteredClients.map((client) => client.id || client._id)
+      setSelectedClients(new Set(allClientIds))
+      setSelectAll(true)
+    }
+  }
 
-    if (selectedClients.length + clientsToSelect.length > 15) {
-      setDialog({
-        isOpen: true,
-        message: 'تجاوز عدد المتدربين المحدد الحد الأقصى (15).',
-        type: 'message'
-      })
+  const handleSelectClient = (clientId) => {
+    const newSelected = new Set(selectedClients)
+    if (newSelected.has(clientId)) {
+      newSelected.delete(clientId)
+    } else {
+      newSelected.add(clientId)
+    }
+    setSelectedClients(newSelected)
+    setSelectAll(newSelected.size === filteredClients.length)
+  }
+
+  // Batch submission functionality
+  const handleBatchSubmission = async () => {
+    console.log('Starting batch submission...')
+    if (selectedClients.size === 0) {
+      showDialog('يرجى اختيار متدربين للإيداع', 'error')
       return
     }
 
-    setSelectedClients((prevSelected) => [...prevSelected, ...clientsToSelect])
-  }
+    setSubmitting(true)
+    console.log('Set submitting to true')
 
-  // Deselect all clients
-  const handleDeselectAll = () => {
-    setSelectedClients([])
-  }
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.error('Batch submission timed out after 30 seconds')
+      setSubmitting(false)
+      showDialog('انتهت مهلة العملية. يرجى المحاولة مرة أخرى', 'error')
+    }, 30000) // 30 seconds timeout
 
-  // Set mode for printing deposit folder
-  const handlePrintDeposit = () => {
-    setViewMode('printDeposit')
-    setSelectedClients([]) // Clear selections when switching modes
-  }
+    const selectedClientsArray = Array.from(selectedClients)
+    const submissionDate = new Date().toISOString().split('T')[0]
+    const updatedClients = []
 
-  // Confirm action for printing
-  const confirmPrintDeposit = async () => {
-    if (selectedClients.length < 1) {
-      setDialog({
-        isOpen: true,
-        message: 'يرجى تحديد متدرب واحد على الأقل.',
-        type: 'message'
-      })
-      return
-    }
+    try {
+      console.log('Processing clients...', selectedClientsArray.length)
+      for (const clientId of selectedClientsArray) {
+        console.log('Processing client:', clientId)
+        const client = clients.find((c) => (c.id || c._id) === clientId)
+        if (!client) {
+          console.error('Client not found:', clientId)
+          continue
+        }
 
-    const handleRetry = async () => {
+        const updatedClient = {
+          ...client,
+          submissionDate,
+          depositSubmitted: true,
+          submissionStatus: 'submitted'
+        }
+
+        // Check if API exists
+        if (!window.api) {
+          throw new Error('API not available')
+        }
+
+        // Update client data
+        console.log('Updating client data...')
+        await window.api.updateClient(clientId, updatedClient)
+
+        // Record submission in history
+        console.log('Recording submission in history...')
+        const submissionDetails = {
+          type: 'deposit',
+          date: submissionDate,
+          status: 'submitted',
+          method: 'batch',
+          batchSize: selectedClientsArray.length
+        }
+        await window.api.recordSubmission(clientId, submissionDetails)
+
+        updatedClients.push(updatedClient)
+      }
+
+      // Generate batch deposit document
       try {
-        // Generate the PDF and open it
-        const outputPath = await window.api.generatePDF('depositPortfolio', selectedClients)
-        await window.api.openPath(outputPath)
-
-        // Mark clients as printed
-        const updatedClients = selectedClients.map((client) => ({ ...client, printed: true }))
-        for (const client of updatedClients) {
-          await window.api.updateClient(client._id, client)
-        }
-
-        // Update clients in state
-        setClients((prevClients) =>
-          prevClients.map((client) => updatedClients.find((uc) => uc._id === client._id) || client)
-        )
-
-        setDialog({
-          isOpen: true,
-          message: 'تم إنشاء الملف وفتح حافظة الإيداع. المتدربين تم وضع علامة مطبوعة عليهم.',
-          type: 'message'
+        console.log('Generating deposit document...')
+        const depositResult = await window.api.generateDepositDocx({
+          candidates: updatedClients,
+          pdfOnly: true,
+          cache: false
         })
-      } catch (error) {
-        if (error.message.includes('EBUSY')) {
-          setDialog({
-            isOpen: true,
-            message: 'الملف مفتوح أو مغلق، يرجى إغلاق الملف والمحاولة مرة أخرى.',
-            type: 'confirm',
-            onConfirm: async () => {
-              await handleRetry()
-            },
-            onCancel: () => {
-              setDialog({ ...dialog, isOpen: false })
-            }
-          })
-        } else {
-          setDialog({
-            isOpen: true,
-            message: 'فشل في إنشاء أو فتح ملف PDF. يرجى المحاولة لاحقًا.',
-            type: 'message'
-          })
-        }
-      }
-    }
+        console.log('Deposit result:', depositResult)
 
-    setDialog({
-      isOpen: true,
-      message: 'هل أنت متأكد من طباعة حافظة الإيداع للمتدربين المحددين؟',
-      type: 'confirm',
-      onConfirm: async () => {
-        await handleRetry()
-        setViewMode('default')
-        setSelectedClients([])
-      },
-      onCancel: () => {
-        setDialog({ ...dialog, isOpen: false })
+        if (depositResult && depositResult.success && depositResult.outputPath) {
+          console.log('Batch deposit document generated:', depositResult.outputPath)
+          // Auto-open the generated file
+          await window.api.openPath(depositResult.outputPath)
+          showDialog(`تم إيداع ${selectedClientsArray.length} متدرب وإنتاج المستند وفتحه بنجاح`)
+        } else {
+          showDialog(
+            `تم إيداع ${selectedClientsArray.length} متدرب بنجاح ولكن فشل في إنتاج المستند`
+          )
+        }
+      } catch (docError) {
+        console.warn('Failed to generate deposit document:', docError)
+        showDialog(`تم إيداع ${selectedClientsArray.length} متدرب بنجاح ولكن فشل في إنتاج المستند`)
       }
-    })
+
+      // Update state
+      console.log('Updating state...')
+      setClients((prev) =>
+        prev.map((c) => {
+          const clientId = c.id || c._id
+          const updatedClient = updatedClients.find((uc) => (uc.id || uc._id) === clientId)
+          return updatedClient || c
+        })
+      )
+
+      setSelectedClients(new Set())
+      setSelectAll(false)
+      console.log('Batch submission completed successfully')
+    } catch (error) {
+      console.error('Error batch submitting:', error)
+      showDialog('فشل في عملية الإيداع الجماعي: ' + error.message, 'error')
+    } finally {
+      clearTimeout(timeoutId) // Clear the timeout
+      console.log('Setting submitting to false')
+      setSubmitting(false)
+    }
   }
 
-  // Filter clients based on printed status, search term, and date filters
-  const filteredClients = clients.filter((client) => {
-    const search = searchTerm.toLowerCase()
-    const matchesSearch =
-      client.first_name_ar.toLowerCase().includes(search) ||
-      client.last_name_ar.toLowerCase().includes(search) ||
-      client.national_id?.includes(search)
+  const getSubmissionStats = () => {
+    const submitted = clients.filter((c) => c.submissionDate || c.depositSubmitted).length
+    const pending = clients.filter((c) => !c.submissionDate && !c.depositSubmitted).length
 
-    if (!matchesSearch) return false
+    return { submitted, pending, total: clients.length }
+  }
 
-    const registerDate = new Date(client.register_date)
-    const matchesMonth = monthFilter ? registerDate.getMonth() + 1 === parseInt(monthFilter) : true
-    const matchesYear = yearFilter ? registerDate.getFullYear() === parseInt(yearFilter) : true
+  const getStatusColor = (client) => {
+    if (client.submissionDate || client.depositSubmitted) {
+      return 'text-green-600 bg-green-100'
+    }
+    return 'text-orange-600 bg-orange-100'
+  }
 
-    if (!matchesMonth || !matchesYear) return false
+  const getStatusText = (client) => {
+    if (client.submissionDate || client.depositSubmitted) return 'مودع'
+    return 'غير مودع'
+  }
 
-    if (filter === 'printed') return client.printed
-    if (filter === 'notPrinted') return !client.printed
-    return true
-  })
+  const getStatusIcon = (client) => {
+    if (client.submissionDate || client.depositSubmitted) return CheckCircleIcon
+    return ClockIcon
+  }
 
-  // Pagination logic
-  const indexOfLastClient = currentPage * clientsPerPage
-  const indexOfFirstClient = indexOfLastClient - clientsPerPage
-  const currentClients = filteredClients.slice(indexOfFirstClient, indexOfLastClient)
-  const totalPages = Math.ceil(filteredClients.length / clientsPerPage)
+  const stats = getSubmissionStats()
 
-  // Virtualized List Item Renderer
-  const Row = ({ index, style }) => {
-    const client = currentClients[index]
-    if (!client) return null
+  if (loading) {
     return (
-      <div style={style}>
-        <ClientCard
-          key={client._id}
-          client={client}
-          isSelected={selectedClients.some((c) => c._id === client._id)}
-          onSelect={handleSelectClient}
-          showCheckbox={viewMode === 'printDeposit'}
-          printed={client.printed}
-        />
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner size="lg" text="جاري تحميل بيانات المتدربين..." />
       </div>
     )
   }
 
   return (
-    <div dir="rtl" className="w-screen h-screen flex flex-col overflow-auto bg-gray-100">
-      <Navbar />
-
-      {/* Filter Section */}
-      <div className="w-full max-w-5xl mx-auto mt-4 flex flex-col sm:flex-row gap-4">
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">جميع المتدربين</option>
-          <option value="printed">مطبوعة</option>
-          <option value="notPrinted">غير مطبوعة</option>
-        </select>
-
-        {/* Month Filter */}
-        <select
-          value={monthFilter}
-          onChange={(e) => setMonthFilter(e.target.value)}
-          className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">كل الأشهر</option>
-          {[...Array(12)].map((_, index) => (
-            <option key={index} value={index + 1}>
-              الشهر {index + 1}
-            </option>
-          ))}
-        </select>
-
-        {/* Year Filter */}
-        <input
-          type="number"
-          placeholder="السنة"
-          value={yearFilter}
-          onChange={(e) => setYearFilter(e.target.value)}
-          className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg"
-        />
-
-        {/* Search input for filtering clients by name */}
-        <input
-          type="text"
-          placeholder="ابحث عن المتدرب بالاسم أو رقم الهوية"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg flex-1"
-        />
-
-        <button
-          onClick={handlePrintDeposit}
-          className={`${
-            viewMode === 'printDeposit' ? 'bg-green-700' : 'bg-green-600'
-          } text-white hover:bg-green-700 px-4 py-2 rounded-full transition duration-300 flex-1`}
-        >
-          طباعة حافظة الإيداع
-        </button>
+    <div className="space-y-6 min-h-full w-full">
+      {/* Standard Page Header */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">📋 إيداع المتدربين</h1>
+            <p className="text-gray-600">إدارة إيداع المتدربين للامتحانات</p>
+          </div>
+          <div className="flex items-center space-x-3 space-x-reverse">
+            <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+              <DocumentTextIcon className="h-6 w-6 text-indigo-600" />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Bulk Action Buttons */}
-      {viewMode === 'printDeposit' && (
-        <div className="w-full max-w-5xl mx-auto mt-4 flex flex-col sm:flex-row gap-4">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleSelectAll}
-              className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-full transition duration-300"
-            >
-              تحديد الكل في الصفحة
-            </button>
-            <button
-              onClick={handleDeselectAll}
-              className="bg-gray-600 text-white hover:bg-gray-700 px-4 py-2 rounded-full transition duration-300"
-            >
-              إلغاء التحديد
-            </button>
-            <span className="text-lg font-semibold text-gray-700">
-              {selectedClients.length} / 15 متدرب محدد
-            </span>
+      {/* Statistics Cards Section */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <h2 className="text-xl font-bold text-gray-800 mb-6 border-b border-gray-200 pb-3">
+          📊 إحصائيات الإيداع
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
+            <div className="flex items-center">
+              <div className="p-3 bg-gray-100 rounded-lg ml-3">
+                <UserGroupIcon className="h-6 w-6 text-gray-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 font-medium">إجمالي المتدربين</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+              </div>
+            </div>
           </div>
 
-          {selectedClients.length > 0 && (
+          <div className="bg-orange-50 rounded-xl p-6 border border-orange-100">
+            <div className="flex items-center">
+              <div className="p-3 bg-orange-100 rounded-lg ml-3">
+                <ClockIcon className="h-6 w-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-orange-600 font-medium">غير مودع</p>
+                <p className="text-2xl font-bold text-orange-600">{stats.pending}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-green-50 rounded-xl p-6 border border-green-100">
+            <div className="flex items-center">
+              <div className="p-3 bg-green-100 rounded-lg ml-3">
+                <CheckCircleIcon className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-green-600 font-medium">مودع</p>
+                <p className="text-2xl font-bold text-green-600">{stats.submitted}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters and Batch Actions */}
+      <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="ابحث بالاسم أو رقم الهاتف..."
+              value={searchQuery}
+              onChange={(e) => search(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            />
+            {isSearching && (
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <LoadingSpinner size="sm" showText={false} />
+              </div>
+            )}
+          </div>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+          >
+            <option value="all">جميع المتدربين</option>
+            <option value="pending">غير مودع</option>
+            <option value="submitted">مودع</option>
+          </select>
+
+          <div className="flex items-center justify-center text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+            عرض {filteredClients.length} من {clients.length} متدرب
+          </div>
+
+          <div className="flex items-center justify-center text-sm text-blue-600 bg-blue-50 rounded-lg p-3">
+            محدد: {selectedClients.size} متدرب
+          </div>
+        </div>
+
+        {/* Batch Action Buttons */}
+        <div className="flex flex-wrap gap-3 items-center justify-between border-t pt-4">
+          <div className="flex gap-2">
             <button
-              onClick={confirmPrintDeposit}
-              className="bg-orange-600 text-white hover:bg-orange-700 px-4 py-2 rounded-full transition duration-300 flex-1"
+              onClick={handleSelectAll}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
             >
-              تأكيد طباعة حافظة الإيداع
+              <input
+                type="checkbox"
+                checked={selectAll}
+                readOnly
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              />
+              {selectAll ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
             </button>
-          )}
+
+            <button
+              onClick={handleBatchSubmission}
+              disabled={selectedClients.size === 0 || submitting}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  جاري الإيداع والإنتاج...
+                </>
+              ) : (
+                <>
+                  <CheckCircleIcon className="w-4 h-4" />
+                  إيداع وإنتاج ({selectedClients.size})
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="text-xs text-gray-500">
+            {selectedClients.size > 0 && (
+              <span>سيتم إيداع وإنتاج ملف {selectedClients.size} متدرب</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Clients List */}
+      <div className="bg-white rounded-xl shadow-sm">
+        {filteredClients.length === 0 ? (
+          <div className="text-center py-12">
+            <UserGroupIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">لا توجد بيانات</h3>
+            <p className="text-gray-500">
+              {clients.length === 0
+                ? 'لا يوجد متدربين في قاعدة البيانات'
+                : 'لا توجد نتائج مطابقة للبحث المحدد'}
+            </p>
+            <p className="text-xs text-gray-400 mt-2">
+              إجمالي المتدربين في قاعدة البيانات: {clients.length}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    المتدرب
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    رقم الهاتف
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    الحالة
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    تاريخ الإيداع
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredClients.map((client) => {
+                  const StatusIcon = getStatusIcon(client)
+                  return (
+                    <tr key={client.id || client._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedClients.has(client.id || client._id)}
+                          onChange={() => handleSelectClient(client.id || client._id)}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {getClientField(client, 'firstName', 'first_name_ar')}{' '}
+                          {getClientField(client, 'lastName', 'last_name_ar')}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {getClientField(client, 'phoneNumber', 'phone_number')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(client)}`}
+                        >
+                          <StatusIcon className="h-4 w-4 ml-1" />
+                          {getStatusText(client)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {client.submissionDate || (client.depositSubmitted ? 'مودع' : '-')}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Summary Footer */}
+      {filteredClients.length > 0 && (
+        <div className="bg-white rounded-xl p-4 shadow-sm border-t">
+          <div className="flex flex-wrap items-center justify-between text-sm">
+            <div className="flex gap-6">
+              <span className="text-gray-600">
+                الإجمالي:{' '}
+                <span className="font-semibold text-gray-900">{filteredClients.length}</span>
+              </span>
+              <span className="text-orange-600">
+                غير مودع:{' '}
+                <span className="font-semibold">
+                  {filteredClients.filter((c) => !c.submissionDate && !c.depositSubmitted).length}
+                </span>
+              </span>
+              <span className="text-green-600">
+                مودع:{' '}
+                <span className="font-semibold">
+                  {filteredClients.filter((c) => c.submissionDate || c.depositSubmitted).length}
+                </span>
+              </span>
+            </div>
+            <div className="text-xs text-gray-500">
+              آخر تحديث: {new Date().toLocaleString('ar-SA')}
+            </div>
+          </div>
         </div>
       )}
 
-      <main className="flex-grow w-full flex flex-col items-center p-4 sm:p-8 overflow-auto">
-        {/* Header Section */}
-        <div className="text-center mb-8 w-full">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-800">
-            إيداع وترشيح المتقدمين
-          </h1>
-          <p className="text-md sm:text-lg text-gray-600 mt-4">
-            إدارة بيانات المترشحين للاختبارات المختلفة.
-          </p>
-        </div>
-
-        {/* Clients Section */}
-        <div className="bg-white rounded-3xl shadow-lg w-full max-w-5xl p-4 sm:p-8">
-          {loading ? (
-            <p className="text-lg sm:text-xl text-gray-700 text-center">جاري تحميل البيانات...</p>
-          ) : filteredClients.length === 0 ? (
-            <p className="text-lg sm:text-xl text-gray-700 text-center">لا يوجد متقدمين متاحين.</p>
-          ) : (
-            <>
-              {/* Virtualized List */}
-              <List
-                height={600} // Adjust based on your container size
-                itemCount={currentClients.length}
-                itemSize={160} // Adjust height based on ClientCard
-                width="100%"
-              >
-                {Row}
-              </List>
-
-              {/* Pagination Component */}
-              <Pagination
-                totalPages={totalPages}
-                currentPage={currentPage}
-                onPageChange={(page) => setCurrentPage(page)}
-              />
-            </>
-          )}
-        </div>
-      </main>
-
-      {/* Dialog for alerts and confirmations */}
       <ActionDialog
         isOpen={dialog.isOpen}
         message={dialog.message}
         type={dialog.type}
-        onConfirm={dialog.onConfirm}
-        onCancel={() => setDialog({ ...dialog, isOpen: false })}
-        onClose={() => setDialog({ ...dialog, isOpen: false })}
+        onConfirm={closeDialog}
+        onCancel={closeDialog}
+        onClose={closeDialog}
       />
     </div>
   )

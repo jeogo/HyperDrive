@@ -1,32 +1,10 @@
-import { PDFDocument, rgb, degrees } from 'pdf-lib'
+import { PDFDocument, rgb } from 'pdf-lib'
 import fs from 'fs'
 import path from 'path'
 import fontkit from '@pdf-lib/fontkit'
-import { app } from 'electron' // Ensure Electron's app module is used for paths
-
-// Helper function to reverse numbers in strings for Arabic formatting
-function reverseNumbersInString(str) {
-  return String(str).replace(/\d+/g, (match) => match.split('').reverse().join(''))
-}
-
-// Function to load the Amiri font
-const loadFont = async () => {
-  const fontPath = path.join(__dirname, '../fonts/Amiri-Regular.ttf')
-  if (!fs.existsSync(fontPath)) {
-    console.log(`Font file not found at path: ${fontPath}. Generating a fallback template.`)
-    return null // Handle missing font by returning null
-  }
-  return fs.readFileSync(fontPath)
-}
-
-// Function to draw Arabic text with correct RTL support
-function drawTextWithArabicSupport(page, text, x, y, font, size, color, rotate = 0) {
-  const textWidth = font.widthOfTextAtSize(text, size)
-  const adjustedX = x - textWidth
-  const textOptions = { x: adjustedX, y, size, font, color }
-  if (rotate) textOptions.rotate = degrees(rotate)
-  page.drawText(text, textOptions)
-}
+import { app } from 'electron'
+import { formatDateForArabic, drawDateLTR } from './utils/dateUtils.js'
+import { loadFont, drawTextWithArabicSupport, reverseNumbersInString } from './utils/pdfUtils.js'
 
 // Function to generate the Candidates PDF
 const generateCandidatesPDF = async (selectedClients) => {
@@ -50,8 +28,8 @@ const generateCandidatesPDF = async (selectedClients) => {
     const pdfDoc = await PDFDocument.load(existingPdfBytes)
     pdfDoc.registerFontkit(fontkit) // Register fontkit for custom font usage
 
-    // Load the Amiri font
-    const amiriFontBytes = await loadFont()
+    // Load the Amiri bold (fallback to regular if bold missing)
+    const amiriFontBytes = await loadFont('bold')
     if (!amiriFontBytes) throw new Error('Amiri font not found.')
     const amiriFont = await pdfDoc.embedFont(amiriFontBytes)
 
@@ -91,7 +69,7 @@ const generateCandidatesPDF = async (selectedClients) => {
 
       const clientFullName = client.fullName || ''
       const registrationNumber = reverseNumbersInString(client.register_number) || ''
-      const birthDate = reverseNumbersInString(client.birthDate) || ''
+      const birthDate = formatDateForArabic(client.birthDate) || ''
       const nextTest = client.nextTest || ''
 
       let examType = ''
@@ -110,39 +88,38 @@ const generateCandidatesPDF = async (selectedClients) => {
       // Draw client data (name, registration number, birth date, next test type)
       drawTextWithArabicSupport(
         currentPage,
-        reverseNumbersInString(clientFullName),
+        clientFullName,
         startingX,
         yOffset,
         amiriFont,
-        10,
-        rgb(0, 0, 0)
+        11,
+        rgb(0, 0, 0),
+        0,
+        !amiriFontBytes || amiriFontBytes.length === 0
       )
       drawTextWithArabicSupport(
         currentPage,
-        reverseNumbersInString(registrationNumber),
+        registrationNumber,
         startingX - 100,
         yOffset,
         amiriFont,
-        10,
-        rgb(0, 0, 0)
+        11,
+        rgb(0, 0, 0),
+        0,
+        !amiriFontBytes || amiriFontBytes.length === 0
       )
+      // Draw birth date with stable LTR digits (per-character)
+      drawDateLTR(currentPage, birthDate, startingX - 155, yOffset, amiriFont, 11, rgb(0, 0, 0))
       drawTextWithArabicSupport(
         currentPage,
-        reverseNumbersInString(birthDate),
-        startingX - 155,
-        yOffset,
-        amiriFont,
-        10,
-        rgb(0, 0, 0)
-      )
-      drawTextWithArabicSupport(
-        currentPage,
-        reverseNumbersInString(examType),
+        examType,
         startingX - 280,
         yOffset,
         amiriFont,
-        10,
-        rgb(0, 0, 0)
+        11,
+        rgb(0, 0, 0),
+        0,
+        !amiriFontBytes || amiriFontBytes.length === 0
       )
     }
 
@@ -156,8 +133,10 @@ const generateCandidatesPDF = async (selectedClients) => {
       countsX,
       countsY,
       amiriFont,
-      12,
-      rgb(0, 0, 0)
+      13,
+      rgb(0, 0, 0),
+      0,
+      !amiriFontBytes || amiriFontBytes.length === 0
     )
     drawTextWithArabicSupport(
       currentPage,
@@ -165,8 +144,10 @@ const generateCandidatesPDF = async (selectedClients) => {
       countsX,
       countsY + 65,
       amiriFont,
-      12,
-      rgb(0, 0, 0)
+      13,
+      rgb(0, 0, 0),
+      0,
+      !amiriFontBytes || amiriFontBytes.length === 0
     )
     drawTextWithArabicSupport(
       currentPage,
@@ -174,8 +155,10 @@ const generateCandidatesPDF = async (selectedClients) => {
       countsX,
       countsY + 43,
       amiriFont,
-      12,
-      rgb(0, 0, 0)
+      13,
+      rgb(0, 0, 0),
+      0,
+      !amiriFontBytes || amiriFontBytes.length === 0
     )
     drawTextWithArabicSupport(
       currentPage,
@@ -183,8 +166,10 @@ const generateCandidatesPDF = async (selectedClients) => {
       countsX,
       countsY + 20,
       amiriFont,
-      12,
-      rgb(0, 0, 0)
+      13,
+      rgb(0, 0, 0),
+      0,
+      !amiriFontBytes || amiriFontBytes.length === 0
     )
 
     // Ensure the output directory exists before saving the file

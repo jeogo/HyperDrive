@@ -7,6 +7,13 @@ import Filter from './ClientDetails/Filter'
 import ClientCard from './ClientDetails/ClientCard'
 import InputField from './Register/InputField'
 import SelectField from './Register/SelectField'
+import Sidebar from './Sidebar'
+// Fast Loading Components
+import { LoadingSpinner, ProgressBar, SkeletonLoader } from './Loading'
+import Layout from './Layout'
+// Status and Document Components
+import StatusIndicator from './Status/StatusIndicator'
+import DocumentAvailabilityIndicator from './Documents/DocumentAvailabilityIndicator'
 
 export {
   ClientDetailsEdit,
@@ -17,5 +24,14 @@ export {
   Filter,
   ActionDialog,
   SelectField,
-  InputField
+  InputField,
+  Sidebar,
+  Layout,
+  // Fast Loading Components
+  LoadingSpinner,
+  ProgressBar,
+  SkeletonLoader,
+  // Status and Document Components
+  StatusIndicator,
+  DocumentAvailabilityIndicator
 }

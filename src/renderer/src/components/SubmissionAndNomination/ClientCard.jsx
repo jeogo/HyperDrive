@@ -1,43 +1,43 @@
 // ClientCard.jsx
 
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCalendarAlt,
   faUser,
   faCalendarCheck,
   faCheckCircle,
   faTimesCircle,
-  faIdCard,
-} from '@fortawesome/free-solid-svg-icons';
+  faIdCard
+} from '@fortawesome/free-solid-svg-icons'
 
 const ClientCard = ({ client, isSelected, onSelect, showCheckbox, printed }) => {
   // Calculate age based on birth date
   const calculateAge = (birthDate) => {
-    if (!birthDate) return 'غير متوفر';
-    const birth = new Date(birthDate);
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDifference = today.getMonth() - birth.getMonth();
+    if (!birthDate) return 'غير متوفر'
+    const birth = new Date(birthDate)
+    const today = new Date()
+    let age = today.getFullYear() - birth.getFullYear()
+    const monthDifference = today.getMonth() - birth.getMonth()
     if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birth.getDate())) {
-      age -= 1;
+      age -= 1
     }
-    return age;
-  };
+    return age
+  }
 
-  const age = calculateAge(client?.birth_date);
+  const age = calculateAge(client?.birth_date)
 
   // Age color helper
   const getAgeColor = (age) => {
-    if (age < 18) return 'bg-red-500';
-    if (age === 18) return 'bg-yellow-500';
-    if (age > 18) return 'bg-green-500';
-    return 'bg-gray-500';
-  };
+    if (age < 18) return 'bg-red-500'
+    if (age === 18) return 'bg-yellow-500'
+    if (age > 18) return 'bg-green-500'
+    return 'bg-gray-500'
+  }
 
   // Printed status
-  const printedStatusIcon = printed ? faCheckCircle : faTimesCircle;
-  const printedStatusColor = printed ? 'text-green-500' : 'text-red-500';
-  const printedStatusText = printed ? 'تمت الطباعة' : 'لم يتم الطباعة';
+  const printedStatusIcon = printed ? faCheckCircle : faTimesCircle
+  const printedStatusColor = printed ? 'text-green-500' : 'text-red-500'
+  const printedStatusText = printed ? 'تمت الطباعة' : 'لم يتم الطباعة'
 
   return (
     <div
@@ -112,7 +112,7 @@ const ClientCard = ({ client, isSelected, onSelect, showCheckbox, printed }) => 
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ClientCard;
+export default ClientCard

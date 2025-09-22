@@ -55,7 +55,7 @@ function createWindow() {
         preload: join(__dirname, '../preload/index.js'), // Preload script
         contextIsolation: true,
         enableRemoteModule: false,
-        sandbox: true,
+        sandbox: false, // Disable sandbox to allow preload script to work
         nodeIntegration: false // Disable node integration for security
       }
     })

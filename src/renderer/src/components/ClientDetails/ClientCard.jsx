@@ -5,7 +5,7 @@ import {
   PencilIcon,
   EyeIcon,
   PrinterIcon,
-  IdentificationIcon,
+  IdentificationIcon
 } from '@heroicons/react/outline'
 
 // Function to calculate the client's age based on their birth date

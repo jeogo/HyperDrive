@@ -2,7 +2,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron'
 
-contextBridge.exposeInMainWorld('api', {
+const apiMethods = {
   // Client CRUD operations
   generateClientPath: async (firstName, lastName) => {
     try {
@@ -28,6 +28,32 @@ contextBridge.exposeInMainWorld('api', {
     }
   },
 
+  // FAST OPERATIONS - Performance Optimized API
+  getClientsPaginated: async (page = 1, limit = 50, filters = {}) => {
+    try {
+      return await ipcRenderer.invoke('get-clients-paginated', page, limit, filters)
+    } catch (error) {
+      console.error('Failed to get paginated clients:', error)
+      return { clients: [], total: 0, page: 1, totalPages: 1, hasMore: false }
+    }
+  },
+
+  invalidateCache: async () => {
+    try {
+      return await ipcRenderer.invoke('invalidate-cache')
+    } catch (error) {
+      console.error('Failed to invalidate cache:', error)
+    }
+  },
+
+  getClients: async () => {
+    try {
+      return await ipcRenderer.invoke('read-clients')
+    } catch (error) {
+      console.error('Failed to get clients:', error)
+    }
+  },
+
   updateClient: async (clientId, updatedData) => {
     try {
       return await ipcRenderer.invoke('update-client', clientId, updatedData)
@@ -41,6 +67,23 @@ contextBridge.exposeInMainWorld('api', {
       return await ipcRenderer.invoke('delete-client', clientId)
     } catch (error) {
       console.error(`Failed to delete client with ID ${clientId}:`, error)
+    }
+  },
+
+  // Search and get operations
+  searchClients: async (query) => {
+    try {
+      return await ipcRenderer.invoke('search-clients', query)
+    } catch (error) {
+      console.error('Failed to search clients:', error)
+    }
+  },
+
+  getClientById: async (clientId) => {
+    try {
+      return await ipcRenderer.invoke('get-client-by-id', clientId)
+    } catch (error) {
+      console.error(`Failed to get client with ID ${clientId}:`, error)
     }
   },
 
@@ -94,11 +137,60 @@ contextBridge.exposeInMainWorld('api', {
     }
   },
 
+  // DOCX Generation for deposit portfolio
+  generateDepositDocx: async (options = {}) => {
+    try {
+      return await ipcRenderer.invoke('generate-deposit-docx', options)
+    } catch (error) {
+      console.error('Failed to generate DOCX:', error)
+      throw error
+    }
+  },
+
+  fillTrafficLawLessonsCard: async (options = {}) => {
+    try {
+      return await ipcRenderer.invoke('fill-traffic-law-card', options)
+    } catch (error) {
+      console.error('Failed to fill traffic law lessons card:', error)
+      throw error
+    }
+  },
+
+  fillCandidateFollowUpCard: async (options = {}) => {
+    try {
+      return await ipcRenderer.invoke('fill-candidate-follow-up-card', options)
+    } catch (error) {
+      console.error('Failed to fill candidate follow-up card:', error)
+      throw error
+    }
+  },
+
   openPath: async (filePath) => {
     try {
       return await ipcRenderer.invoke('open-path', filePath)
     } catch (error) {
       console.error('Failed to open path:', error)
     }
+  },
+
+  // Record submission for tracking
+  recordSubmission: async (clientId, submissionDetails) => {
+    try {
+      return await ipcRenderer.invoke('record-submission', clientId, submissionDetails)
+    } catch (error) {
+      console.error(`Failed to record submission for client ${clientId}:`, error)
+    }
+  },
+
+  // Get submission history for a client
+  getSubmissionHistory: async (clientId) => {
+    try {
+      return await ipcRenderer.invoke('get-submission-history', clientId)
+    } catch (error) {
+      console.error(`Failed to get submission history for client ${clientId}:`, error)
+    }
   }
-})
+}
+
+// Expose unified API
+contextBridge.exposeInMainWorld('api', apiMethods)

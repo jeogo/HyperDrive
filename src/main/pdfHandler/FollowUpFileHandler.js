@@ -1,90 +1,117 @@
-import { PDFDocument, rgb, degrees } from 'pdf-lib';
-import fs from 'fs';
-import path from 'path';
-import fontkit from '@pdf-lib/fontkit';
+// Python-integrated FollowUpFile handler.
+// Calls scripts/fill_candidate_follow_up_card.py to generate DOCX + optional PDF, returns PDF path if produced else DOCX.
+import path from 'path'
+import fs from 'fs'
+import { app } from 'electron'
+import { runPythonForPDF, buildUserDataOutput } from './utils/pythonScriptRunner.js'
 
-const loadFont = async () => {
-  const fontPath = path.join(__dirname, '../fonts/Amiri-Regular.ttf');
-  if (!fs.existsSync(fontPath)) {
-    throw new Error(`Font file not found at path: ${fontPath}`);
-  }
-  return fs.readFileSync(fontPath);
-};
+const PY_SCRIPT = path.join(process.cwd(), 'scripts', 'fill_candidate_follow_up_card.py')
 
-function drawTextWithArabicSupport(page, text, x, y, font, size, color, rotate = 0) {
-  const textWidth = font.widthOfTextAtSize(text, size);
-  const adjustedX = x - textWidth; // Adjust the x-coordinate for RTL text
-  const textOptions = { x: adjustedX, y, size, font, color };
-  if (rotate) {
-    textOptions.rotate = degrees(rotate);
+async function ensurePythonScriptExists() {
+  if (!fs.existsSync(PY_SCRIPT)) {
+    throw new Error(`Python follow-up card script not found at ${PY_SCRIPT}`)
   }
-  page.drawText(text, textOptions);
 }
 
-function reverseNumbersInString(str) {
-  return str.replace(/\d+/g, (match) => match.split('').reverse().join(''));
+function normalizeClientData(raw) {
+  return {
+    first_name_ar: raw.first_name_ar || raw.firstNameAr || '',
+    last_name_ar: raw.last_name_ar || raw.lastNameAr || '',
+    birth_date: raw.birth_date || raw.birthDate || '',
+    birth_place: raw.birth_place || raw.birthPlace || '',
+    birth_municipality: raw.birth_municipality || raw.birthMunicipality || '',
+    birth_state: raw.birth_state || raw.birthState || '',
+    current_address: raw.current_address || raw.currentAddress || '',
+    current_municipality: raw.current_municipality || raw.currentMunicipality || '',
+    current_state: raw.current_state || raw.currentState || '',
+    phone_number: raw.phone_number || raw.phoneNumber || '',
+    register_date: raw.register_date || raw.registerDate || '',
+    subPrice: raw.subPrice || raw.totalAmount || '0',
+    // Keep original test data for validation
+    tests: raw.tests || {}
+  }
 }
 
-const generateFollowUpFilePDF = async (clientData) => {
-  const templatePath = path.join(__dirname, '../templates/ملف المتابعة.pdf');
-  if (!fs.existsSync(templatePath)) {
-    throw new Error(`Template file not found at path: ${templatePath}`);
+async function generateFollowUpFilePDF(clientData) {
+  await ensurePythonScriptExists()
+
+  // CHECK: Traffic law test status for date calculation (but don't block generation)
+  const trafficLawTest = clientData.tests?.trafficLawTest
+  const hasPassedTrafficLaw = trafficLawTest && trafficLawTest.passed
+
+  const normalized = normalizeClientData(clientData)
+  const clientFolderName =
+    `${normalized.first_name_ar}_${normalized.last_name_ar}`
+      .replace(/[<>:"/\\|?*]/g, '')
+      .replace(/\s+/g, '_')
+      .substring(0, 40) || 'client'
+
+  const outputDir = buildUserDataOutput(app, ['follow_up_cards', clientFolderName])
+  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true })
+
+  // Use safe English filename to avoid Unicode path issues
+  const timestamp = Date.now()
+  const outputDocx = path.join(outputDir, `candidate_follow_up_${timestamp}.docx`)
+  
+  // SMART DATE LOGIC: Use law test date if passed, otherwise use registration date
+  let startDate = new Date().toISOString().slice(0, 10) // fallback to today
+  
+  if (hasPassedTrafficLaw && trafficLawTest.lastAttemptDate) {
+    try {
+      // Parse the last attempt date and add 1 day
+      const lawTestDate = new Date(trafficLawTest.lastAttemptDate)
+      lawTestDate.setDate(lawTestDate.getDate() + 1) // Add 1 day
+      startDate = lawTestDate.toISOString().slice(0, 10) // YYYY-MM-DD format
+      console.log(`[INFO] Student passed traffic law - starting from day after test: ${startDate}`)
+    } catch (error) {
+      console.warn(`[WARN] Invalid law test date format, using registration date: ${error.message}`)
+      startDate = normalized.register_date || new Date().toISOString().slice(0, 10)
+    }
+  } else {
+    // Student hasn't passed yet - use registration date or today
+    startDate = normalized.register_date || new Date().toISOString().slice(0, 10)
+    console.log(
+      `[INFO] Student hasn't passed traffic law yet - generating template with registration date: ${startDate}`
+    )
   }
 
-  const existingPdfBytes = fs.readFileSync(templatePath);
-  const pdfDoc = await PDFDocument.load(existingPdfBytes);
+  // Generate client ID for per-date hour reservation
+  const clientId =
+    clientData._id ||
+    clientData.id ||
+    `${normalized.first_name_ar}_${normalized.last_name_ar}_${Date.now()}`
 
-  pdfDoc.registerFontkit(fontkit);
+  const clientJsonString = JSON.stringify(normalized)
 
-  const amiriFontBytes = await loadFont();
-  const amiriFont = await pdfDoc.embedFont(amiriFontBytes);
+  const args = [
+    '--input',
+    'resources/templates/بطاقة المتابعة للمترشح.docx',
+    '--output',
+    outputDocx,
+    '--start-date',
+    startDate,
+    '--client-data',
+    clientJsonString,
+    '--client-id',
+    clientId,
+    '--table1-dates',
+    '30',
+    '--table2-dates',
+    '30',
+    '--pdf'
+  ]
 
-  const pages = pdfDoc.getPages();
-  if (pages.length === 0) {
-    throw new Error('No pages found in the PDF document.');
+  const { code, stdout, stderr, pdfPath } = await runPythonForPDF(PY_SCRIPT, args, {
+    cwd: process.cwd()
+  })
+
+  if (code !== 0) {
+    throw new Error(`Python script failed (code ${code}): ${stderr || stdout}`)
   }
 
-  const firstPage = pages[0];
-  const secondPage = pages.length > 1 ? pages[1] : null;
+  // Prefer PDF if produced
+  const finalPath = pdfPath && fs.existsSync(pdfPath) ? pdfPath : outputDocx
+  return finalPath
+}
 
-  // Automatically get the width and height of the first page
-  const pageHeight = firstPage.getHeight();
-
-  const client = {
-    fullNameAr: `${clientData.first_name_ar || ''} ${clientData.last_name_ar || ''}`,
-    birthInfo: reverseNumbersInString(` ${clientData.birth_date || ''} -  ${clientData.birth_place || ''}`),
-    addressInfo: reverseNumbersInString(` ${clientData.current_address || ''}`),
-    phoneNumber: clientData.phone_number || '',
-    paid: clientData.paid ? ` ${clientData.paid}` : '0',
-    ReagisterDate: clientData?.register_date || " -  -  ",
-
-  };
-
-  // Draw concatenated birth date, birth place, and current address on the same line
-  drawTextWithArabicSupport(firstPage, client.fullNameAr, 320, pageHeight - 187, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(firstPage, client.birthInfo, 290, pageHeight - 201, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(firstPage, client.addressInfo, 345, pageHeight - 225, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(firstPage, client.phoneNumber, 330, pageHeight - 250, amiriFont, 13, rgb(0, 0, 0));
-  drawTextWithArabicSupport(firstPage, client.ReagisterDate, 250, pageHeight - 278, amiriFont, 13, rgb(0, 0, 0));
-
-
-
-  // Draw payment information on the second page, if available
-  if (secondPage) {
-    drawTextWithArabicSupport(secondPage, client.paid +"DA", 315,  79, amiriFont, 13, rgb(0, 0, 0));
-  }
-
-  if (!fs.existsSync(clientData.path)) {
-    fs.mkdirSync(clientData.path, { recursive: true });
-  }
-
-  const fileName = `ملف المتابعة.pdf`;
-  const outputPath = path.join(clientData.path, fileName);
-
-  const pdfBytes = await pdfDoc.save();
-  fs.writeFileSync(outputPath, pdfBytes);
-
-  return outputPath;
-};
-
-export default generateFollowUpFilePDF;
+export default generateFollowUpFilePDF

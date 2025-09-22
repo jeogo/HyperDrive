@@ -1,0 +1,19 @@
+# HyperDrive Scripts - Python Requirements
+# Install with: pip install -r requirements.txt
+
+# Core document processing
+python-docx
+docxtpl
+
+# PDF conversion (requires MS Word on Windows or LibreOffice)
+docx2pdf
+
+# Date and path handling (usually included with Python)
+pathlib2
+
+# Optional: Alternative PDF converter
+# python-docx2pdf>=0.1.0
+
+# Development and testing
+# pytest>=7.0.0
+# black>=22.0.0

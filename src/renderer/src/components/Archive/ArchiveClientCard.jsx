@@ -10,8 +10,9 @@ import {
   faPhoneAlt,
   faCalendarCheck
 } from '@fortawesome/free-solid-svg-icons'
+import { calculateAge } from '../../utils/clientUtils'
 
-const ArchiveClientCard = ({ client, onUnarchiveClient, calculateAge }) => {
+const ArchiveClientCard = ({ client, onUnarchiveClient }) => {
   return (
     <div dir="rtl" className="w-full rounded-3xl bg-white shadow-lg p-6 flex items-center relative">
       {/* Unarchive button */}
@@ -25,14 +26,14 @@ const ArchiveClientCard = ({ client, onUnarchiveClient, calculateAge }) => {
 
       <div className="flex-grow">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <ClientDetails client={client} calculateAge={calculateAge} />
+          <ClientDetails client={client} />
         </div>
       </div>
     </div>
   )
 }
 
-const ClientDetails = ({ client, calculateAge }) => (
+const ClientDetails = ({ client }) => (
   <>
     <div className="flex items-center">
       <FontAwesomeIcon icon={faUser} className="text-indigo-500 h-6 w-6 ml-2" />
