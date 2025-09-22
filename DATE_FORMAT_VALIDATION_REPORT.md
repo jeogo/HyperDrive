@@ -82,13 +82,13 @@ const formatDateForArabic = (dateStr) => {
 
 ### ✅ INPUTS (Flexible - Multiple Formats Accepted)
 - YYYY-MM-DD (ISO format)
-- YYYY/MM/DD 
+- YYYY/MM/DD
 - DD/MM/YYYY
 - MM/DD/YYYY
 
 ### ✅ OUTPUTS (Consistent - Always DD/MM/YYYY)
 - **Display in UI**: DD/MM/YYYY
-- **Word Documents**: DD/MM/YYYY  
+- **Word Documents**: DD/MM/YYYY
 - **PDF Reports**: DD/MM/YYYY
 - **Client Data**: DD/MM/YYYY
 
