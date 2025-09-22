@@ -95,7 +95,7 @@ def save_reservations(reservations):
 def clean_reservation_formats(reservations):
     """Clean all hour formats in reservation data to ensure consistent XX-XX format"""
     cleaned = {}
-    
+
     # Clean date-based reservations
     for key, value in reservations.items():
         if key == '_client_memory':
@@ -146,7 +146,7 @@ def clean_reservation_formats(reservations):
             cleaned[key] = cleaned_hours
         else:
             cleaned[key] = value
-    
+
     return cleaned
 
 def reserve_hours_for_dates(dates: List[str], client_id: str) -> List[str]:
@@ -176,7 +176,7 @@ def reserve_hours_for_dates(dates: List[str], client_id: str) -> List[str]:
     if client_id in client_memory:
         stored_hours = client_memory[client_id]
         cleaned_hours = {}
-        
+
         for date_str, old_hour in stored_hours.items():
             # Check if hour is in old Arabic format and needs cleaning
             if any(pattern in str(old_hour) for pattern in ['من', 'إلى', 'ىلإ', 'الى', ':00', 'h']):
@@ -184,7 +184,7 @@ def reserve_hours_for_dates(dates: List[str], client_id: str) -> List[str]:
                 date_reservations = reservations.get(date_str, [])
                 start_h = WORKING_HOURS['start']
                 end_h = WORKING_HOURS['end']
-                
+
                 # Find first available slot
                 assigned = None
                 for hour in range(start_h, end_h):
@@ -193,17 +193,17 @@ def reserve_hours_for_dates(dates: List[str], client_id: str) -> List[str]:
                         date_reservations.append(slot)
                         assigned = slot
                         break
-                
+
                 if assigned is None:
                     assigned = 'FULL'
-                
+
                 cleaned_hours[date_str] = assigned
                 reservations[date_str] = date_reservations
                 safe_print(f"[INFO] 🧹 Cleaned old hour format for {client_id} on {date_str}: '{old_hour}' -> '{assigned}'")
             else:
                 # Keep existing clean format
                 cleaned_hours[date_str] = old_hour
-        
+
         client_memory[client_id] = cleaned_hours
 
     # If client exists in memory, reuse their hours for matching dates
@@ -220,7 +220,7 @@ def reserve_hours_for_dates(dates: List[str], client_id: str) -> List[str]:
                     date_reservations = reservations.get(date_str, [])
                     start_h = WORKING_HOURS['start']
                     end_h = WORKING_HOURS['end']
-                    
+
                     assigned = None
                     for hour in range(start_h, end_h):
                         slot = WORKING_HOURS['format_template'].format(start=hour, end=hour + 1)
@@ -228,10 +228,10 @@ def reserve_hours_for_dates(dates: List[str], client_id: str) -> List[str]:
                             date_reservations.append(slot)
                             assigned = slot
                             break
-                    
+
                     if assigned is None:
                         assigned = 'FULL'
-                    
+
                     hours.append(assigned)
                     stored_hours[date_str] = assigned
                     reservations[date_str] = date_reservations
@@ -640,7 +640,7 @@ def replace_paragraph_placeholders(doc, data: Dict[str, str]):
 
 def clean_hour_formats_in_document(doc):
     """Remove hardcoded hour format patterns from the document - SMART CLEANING
-    
+
     Only clean hardcoded Arabic patterns from template, but preserve cells that will be filled with proper hours
     """
     # Enhanced patterns to catch all possible Arabic time formats
@@ -650,17 +650,17 @@ def clean_hour_formats_in_document(doc):
         r'15الى16سا',                                # Hardcoded 15الى16سا pattern
         r'\d+الى\d+سا',                             # Any number الى number سا pattern
     ]
-    
+
     total_cleaned = 0
-    
-    # Focus specifically on Table 2 (theory lessons) and Table 3 (practical lessons) 
+
+    # Focus specifically on Table 2 (theory lessons) and Table 3 (practical lessons)
     # where the hour cells are located - but only clean hardcoded Arabic patterns
     if len(doc.tables) > 2:
         for table_idx in [2, 3]:  # Table 2 and Table 3
             if table_idx < len(doc.tables):
                 table = doc.tables[table_idx]
                 safe_print(f"[INFO] 🧹 Smart cleaning of hardcoded Arabic patterns in Table {table_idx}")
-                
+
                 for row_idx, row in enumerate(table.rows):
                     if row_idx >= 2:  # Skip header rows
                         for cell_idx, cell in enumerate(row.cells):
@@ -674,23 +674,23 @@ def clean_hour_formats_in_document(doc):
                                         cell._element.clear_content()
                                         total_cleaned += 1
                                         safe_print(f"[INFO] 🧹 CLEARED hardcoded pattern in Table {table_idx}, Row {row_idx}, Cell {cell_idx}: '{original}' -> EMPTY")
-    
-    # Also clean header cells that might have Arabic text 
+
+    # Also clean header cells that might have Arabic text
     # Clean "الساعة" (hour) to "العة" as seen in debug output
     arabic_header_patterns = [
         (r'الساعة', 'العة'),  # Clean Arabic "hour" header
     ]
-    
+
     # Clean XML elements - more targeted approach for headers
     try:
         for elem in doc._element.iter():
             if hasattr(elem, 'text') and elem.text:
                 original_text = elem.text
                 new_text = original_text
-                
+
                 for pattern, replacement in arabic_header_patterns:
                     new_text = re.sub(pattern, replacement, new_text)
-                
+
                 if new_text != original_text:
                     try:
                         elem.text = new_text
@@ -700,7 +700,7 @@ def clean_hour_formats_in_document(doc):
                         pass  # Skip readonly elements
     except Exception as e:
         print(f"[WARN] Failed to clean hour formats in XML elements: {e}")
-    
+
     if total_cleaned > 0:
         safe_print(f"[INFO] ✅ Total hardcoded patterns cleaned: {total_cleaned}")
     else:
@@ -719,31 +719,31 @@ def format_cell(cell, value: str):
     from docx.enum.table import WD_ALIGN_VERTICAL
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
-    
+
     cleaned = clean_text(value)
-    
+
     # COMPLETELY clear the cell - remove all paragraphs
     cell._element.clear_content()
-    
+
     # Add a fresh paragraph
     para = cell.add_paragraph()
     run = para.add_run(cleaned)
-    
+
     # Set paragraph alignment
     para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
+
     # Set paragraph formatting
     if para.paragraph_format is not None:
         pf = para.paragraph_format
         pf.space_before = Pt(0)
         pf.space_after = Pt(0)
         pf.line_spacing = 1
-    
+
     # Set run formatting
     run.font.name = 'Arial'
     run.font.size = Pt(12)
     run.font.bold = True
-    
+
     # Set cell vertical alignment
     try:
         cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
@@ -761,7 +761,7 @@ def format_cell(cell, value: str):
         tcPr.append(tcMar)
     except Exception:
         pass
-    
+
     return cleaned
 
 def fill_table_dates_only(table, dates: List[str], start_row: int, date_col: int):
@@ -809,7 +809,7 @@ def fill_table_dates_and_hours(table, dates: List[str], hours: List[str], start_
 
 def fill_candidate_tables(doc, start_date_str: str, table1_count: int, table2_count: int, date_format: str, client_id: str = None, traffic_law_passed: bool = False):
     """Fill the candidate follow-up card tables based on discovered structure
-    
+
     Table 2 (Theory lessons): Always filled with DATES ONLY (no hours)
     Table 3 (Practical lessons): Only filled with DATES + HOURS if traffic law test passed
     """

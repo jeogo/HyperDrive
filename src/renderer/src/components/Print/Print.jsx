@@ -100,7 +100,7 @@ const Print = ({ client }) => {
           tests: client?.tests || {}
         }
 
-        // Smart date calculation: 
+        // Smart date calculation:
         // - If traffic law passed: start day after test date
         // - If not passed: use registration date or today
         let startDate
@@ -259,8 +259,8 @@ const Print = ({ client }) => {
           onClick={() => handlePrintDocument('candidateFollowUpCard')}
         >
           <PrinterIcon className="inline h-6 w-6 mr-2" />
-          {client?.tests?.trafficLawTest?.passed 
-            ? '✅ طباعة بطاقة المتابعة للمترشح (ذكي)' 
+          {client?.tests?.trafficLawTest?.passed
+            ? '✅ طباعة بطاقة المتابعة للمترشح (ذكي)'
             : '⏳ طباعة بطاقة المتابعة للمترشح (قالب)'
           }
         </button>

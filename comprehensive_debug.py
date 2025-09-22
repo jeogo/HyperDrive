@@ -14,22 +14,22 @@ except ImportError:
 def analyze_document_structure(doc_path):
     """Analyze all content in the Word document to find Arabic time patterns"""
     print(f"\n=== ANALYZING DOCUMENT: {doc_path} ===")
-    
+
     if not Path(doc_path).exists():
         print(f"Document not found: {doc_path}")
         return
-    
+
     doc = Document(doc_path)
-    
+
     # Arabic time patterns to look for
     arabic_patterns = [
         'من', 'إلى', 'ىلإ', 'الى', 'سا',
         'من07:00إلى08:00', 'نم07:00ىلإ08:00',
         '15الى16سا', '07:00', '08:00'
     ]
-    
+
     print(f"\nDocument has {len(doc.tables)} tables and {len(doc.paragraphs)} paragraphs")
-    
+
     # Check paragraphs
     print(f"\n--- PARAGRAPHS ---")
     for i, para in enumerate(doc.paragraphs):
@@ -38,12 +38,12 @@ def analyze_document_structure(doc_path):
             has_arabic_pattern = any(pattern in text for pattern in arabic_patterns)
             if has_arabic_pattern or i < 5:  # Show first 5 and any with Arabic patterns
                 print(f"Para {i}: '{text}' {'⚠️' if has_arabic_pattern else ''}")
-    
+
     # Check tables in detail
     print(f"\n--- TABLES ---")
     for table_idx, table in enumerate(doc.tables):
         print(f"\nTable {table_idx}: {len(table.rows)} rows × {len(table.columns)} columns")
-        
+
         # Sample first few rows and look for patterns
         for row_idx, row in enumerate(table.rows):
             if row_idx < 3 or row_idx >= len(table.rows) - 3:  # First 3 and last 3 rows
@@ -53,7 +53,7 @@ def analyze_document_structure(doc_path):
                     if text:
                         has_arabic_pattern = any(pattern in text for pattern in arabic_patterns)
                         print(f"    Cell {cell_idx}: '{text}' {'⚠️' if has_arabic_pattern else ''}")
-            
+
             # For tables 2 and 3, check all hour cells (column 2)
             if table_idx in [2, 3] and row_idx >= 2:  # Skip headers
                 if len(row.cells) > 2:
@@ -63,7 +63,7 @@ def analyze_document_structure(doc_path):
                         has_arabic_pattern = any(pattern in hour_text for pattern in arabic_patterns)
                         if has_arabic_pattern:
                             print(f"  ⚠️ Row {row_idx}, Hour Cell: '{hour_text}'")
-    
+
     # Check XML content for hidden patterns
     print(f"\n--- XML CONTENT ANALYSIS ---")
     try:
@@ -73,7 +73,7 @@ def analyze_document_structure(doc_path):
             if pattern in xml_content:
                 count = xml_content.count(pattern)
                 found_patterns.append(f"'{pattern}': {count} times")
-        
+
         if found_patterns:
             print("Found Arabic patterns in XML:")
             for pattern_info in found_patterns:

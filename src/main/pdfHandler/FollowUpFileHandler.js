@@ -52,10 +52,10 @@ async function generateFollowUpFilePDF(clientData) {
   // Use safe English filename to avoid Unicode path issues
   const timestamp = Date.now()
   const outputDocx = path.join(outputDir, `candidate_follow_up_${timestamp}.docx`)
-  
+
   // SMART DATE LOGIC: Use law test date if passed, otherwise use registration date
   let startDate = new Date().toISOString().slice(0, 10) // fallback to today
-  
+
   if (hasPassedTrafficLaw && trafficLawTest.lastAttemptDate) {
     try {
       // Parse the last attempt date and add 1 day
