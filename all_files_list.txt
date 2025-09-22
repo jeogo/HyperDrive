@@ -1,0 +1,133 @@
+.editorconfig
+.env
+.eslintignore
+.eslintrc.cjs
+.gitignore
+.prettierignore
+.prettierrc.yaml
+ARABIC_SYSTEM_STATUS.md
+BACKEND_TECH_REFERENCE.md
+DATE_FORMAT_VALIDATION_REPORT.md
+README.md
+comprehensive_debug.py
+debug_validation.js
+electron-builder.yml
+electron.vite.config.mjs
+install.bat
+package-lock.json
+package.json
+postcss.config.js
+resources/assets/icon.ico
+resources/assets/icon.png
+resources/assets/icons/icon.ico
+resources/assets/tailwind.css
+"resources/templates/\330\250\330\267\330\247\331\202\330\251 \330\247\331\204\330\245\330\271\330\257\330\247\330\257 \331\204\330\247\331\205\330\252\330\255\330\247\331\206 \330\247\331\204\331\205\331\206\330\247\331\210\330\261\330\247\330\252.pdf"
+"resources/templates/\330\250\330\267\330\247\331\202\330\251 \330\247\331\204\331\205\330\252\330\247\330\250\330\271\330\251 \331\204\331\204\331\205\330\252\330\261\330\264\330\255.docx"
+"resources/templates/\330\250\330\267\330\247\331\202\330\251 \330\256\330\247\330\265\330\251 \330\250\330\257\330\261\331\210\330\263 \331\202\330\247\331\206\331\210\331\206 \330\247\331\204\331\205\330\261\331\210\330\261 .docx"
+"resources/templates/\330\250\330\267\330\247\331\202\330\251 \330\256\330\247\330\265\330\251 \330\250\330\257\330\261\331\210\330\263 \331\202\330\247\331\206\331\210\331\206 \330\247\331\204\331\205\330\261\331\210\330\261 .pdf"
+"resources/templates/\330\264\331\207\330\247\330\257\330\251 \330\267\330\250\331\212\330\251.pdf"
+"resources/templates/\331\205\331\204\331\201 \330\247\331\204\330\245\331\212\330\257\330\247\330\271.docx"
+"resources/templates/\331\205\331\204\331\201 \330\247\331\204\330\245\331\212\330\257\330\247\330\271.pdf"
+"resources/templates/\331\205\331\204\331\201 \330\247\331\204\331\205\330\252\330\247\330\250\330\271\330\251.pdf"
+"resources/templates/\331\205\331\204\331\201 \330\247\331\204\331\205\330\252\330\261\330\264\330\255\331\212\331\206.pdf"
+"resources/templates/\331\206\331\205\331\210\330\260\330\254 \330\247\331\204\330\247\330\263\330\252\331\205\330\247\330\261\330\251 - \330\263\331\205\330\247\330\271\331\212\331\204.pdf"
+schedule_reservations.json
+schedule_reservations_backup.json
+scripts/README.md
+scripts/__pycache__/fill_candidate_follow_up_card.cpython-313.pyc
+scripts/fill_candidate_follow_up_card.py
+scripts/fill_traffic_law_lessons_card.py
+scripts/generate_deposit_docx.py
+scripts/requirements.txt
+src/fonts/Amiri-Regular.ttf
+src/fonts/NotoSansArabic.ttf
+src/fonts/Rubik.ttf
+src/fonts/calibri.ttf
+src/main/crud.js
+src/main/index.js
+src/main/ipcHandlers.js
+src/main/pdfHandler/Candidates.js
+src/main/pdfHandler/FollowUpFileHandler.js
+src/main/pdfHandler/FormTemplate.js
+src/main/pdfHandler/MedicalCertificate.js
+src/main/pdfHandler/PreparationCardForManeuversExam.js
+src/main/pdfHandler/TrafficLawLessonsCardHandler.js
+src/main/pdfHandler/utils/dateUtils.js
+src/main/pdfHandler/utils/pdfUtils.js
+src/main/pdfHandler/utils/pythonScriptRunner.js
+src/main/templateManager.js
+src/preload/index.js
+src/renderer/index.html
+src/renderer/src/App.jsx
+src/renderer/src/assets/electron.svg
+src/renderer/src/assets/icon.ico
+src/renderer/src/assets/icon.png
+src/renderer/src/assets/main.css
+src/renderer/src/assets/nasro.jpg
+src/renderer/src/assets/oussama.jpg
+src/renderer/src/assets/tailwind.css
+src/renderer/src/assets/wavy-lines.svg
+src/renderer/src/components/Archive/ArchiveClientCard.jsx
+src/renderer/src/components/ClientDetails/ClientCard.jsx
+src/renderer/src/components/ClientDetails/ClientDetails.jsx
+src/renderer/src/components/ClientDetails/ClientDetailsEdit.jsx
+src/renderer/src/components/ClientDetails/Filter.jsx
+src/renderer/src/components/ClientDetails/usePopup.jsx
+src/renderer/src/components/Documents/DocumentAvailabilityIndicator.jsx
+src/renderer/src/components/Exams/ClientCard.jsx
+src/renderer/src/components/Exams/EditClientModal.jsx
+src/renderer/src/components/Layout.jsx
+src/renderer/src/components/Loading/LoadingSpinner.jsx
+src/renderer/src/components/Loading/ProgressBar.jsx
+src/renderer/src/components/Loading/SkeletonLoader.jsx
+src/renderer/src/components/Loading/index.js
+src/renderer/src/components/Messages/ActionDialog.jsx
+src/renderer/src/components/Messages/UserFriendlyMessage.jsx
+src/renderer/src/components/Pagination.jsx
+src/renderer/src/components/Print/Print.jsx
+src/renderer/src/components/Register/DateInputField.jsx
+src/renderer/src/components/Register/InputField.jsx
+src/renderer/src/components/Register/SelectField.jsx
+src/renderer/src/components/Sidebar.jsx
+src/renderer/src/components/Status/StatusIndicator.jsx
+src/renderer/src/components/SubmissionAndNomination/ClientCard.jsx
+src/renderer/src/components/SubmissionAndNomination/Pagination.jsx
+src/renderer/src/components/index.js
+src/renderer/src/hooks/useFastSearch.js
+src/renderer/src/main.jsx
+src/renderer/src/pages/About.jsx
+src/renderer/src/pages/Archive.jsx
+src/renderer/src/pages/Clients.jsx
+src/renderer/src/pages/Exams.jsx
+src/renderer/src/pages/Home.jsx
+src/renderer/src/pages/Register.jsx
+src/renderer/src/pages/SubmissionAndNomination.jsx
+src/renderer/src/pages/index.js
+src/renderer/src/utils/clientKnowledge.js
+src/renderer/src/utils/clientUtils.js
+src/renderer/src/utils/dateUtils.js
+src/renderer/src/utils/errorMessages.js
+src/renderer/src/utils/index.js
+src/renderer/src/utils/reportUtils.js
+src/renderer/src/utils/searchUtils.js
+src/renderer/src/utils/testUtils.js
+"src/templates/\330\250\330\267\330\247\331\202\330\251 \330\247\331\204\330\245\330\271\330\257\330\247\330\257 \331\204\330\247\331\205\330\252\330\255\330\247\331\206 \330\247\331\204\331\205\331\206\330\247\331\210\330\261\330\247\330\252.pdf"
+"src/templates/\330\250\330\267\330\247\331\202\330\251 \330\256\330\247\330\265\330\251 \330\250\330\257\330\261\331\210\330\263 \331\202\330\247\331\206\331\210\331\206 \330\247\331\204\331\205\330\261\331\210\330\261 .pdf"
+"src/templates/\330\264\331\207\330\247\330\257\330\251 \330\267\330\250\331\212\330\251.pdf"
+"src/templates/\331\205\331\204\331\201 \330\247\331\204\330\245\331\212\330\257\330\247\330\271.pdf"
+"src/templates/\331\205\331\204\331\201 \330\247\331\204\331\205\330\252\330\247\330\250\330\271\330\251.pdf"
+"src/templates/\331\205\331\204\331\201 \330\247\331\204\331\205\330\252\330\261\330\264\330\255\331\212\331\206.pdf"
+"src/templates/\331\206\331\205\331\210\330\260\330\254 \330\247\331\204\330\247\330\263\330\252\331\205\330\247\330\261\330\251 - \330\263\331\205\330\247\330\271\331\212\331\204.pdf"
+start.bat
+tailwind.config.js
+test_client_debug.json
+test_corrected_final.docx
+test_date_format.json
+test_date_format_check.docx
+test_date_format_fixed.docx
+test_date_validation.py
+test_debug_current.docx
+test_final_date_check.docx
+test_final_fix.docx
+test_register_date_conversion.js
+test_traffic_law_date_check.docx

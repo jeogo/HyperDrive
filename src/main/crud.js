@@ -32,6 +32,12 @@ let cacheTimestamp = 0
 let cachedClients = null
 const CACHE_TTL = 30000 // 30 seconds cache
 
+// Hoisted cache invalidation function (must be defined before loadDatabase -> saveDatabase migration calls)
+export function invalidateCache() {
+  cachedClients = null
+  cacheTimestamp = 0
+}
+
 // Function to get cached clients or load fresh data
 const getCachedClients = () => {
   const now = Date.now()
@@ -95,7 +101,7 @@ const saveDatabase = () => {
     const data = JSON.stringify(clientsDB, null, 2)
     writeFileSync(dbFilePath, data, 'utf8')
     // Invalidate cache when data changes for consistency
-    invalidateCache()
+    if (typeof invalidateCache === 'function') invalidateCache()
   } catch (error) {
     console.error('Error saving database:', error)
     throw new Error(`Failed to save database: ${error.message}`)
@@ -636,9 +642,6 @@ export const getClientsPaginated = (page = 1, limit = 50, filters = {}) => {
 }
 
 // Invalidate cache when data changes
-export const invalidateCache = () => {
-  cachedClients = null
-  cacheTimestamp = 0
-}
+// (invalidateCache moved above for hoisting safety)
 
 console.log('Clients Base Directory =>', baseDir)
